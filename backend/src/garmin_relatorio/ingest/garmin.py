@@ -236,8 +236,9 @@ def ingest_daily(days: int = 30) -> dict[str, int]:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO daily_metrics
-                (date, resting_hr, hrv_overnight, body_battery, stress_avg, steps, raw)
-                VALUES (?,?,?,?,?,?,?)
+                (date, resting_hr, hrv_overnight, body_battery, stress_avg, steps,
+                 total_kcal, active_kcal, bmr_kcal, raw)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     d,
@@ -246,6 +247,9 @@ def ingest_daily(days: int = 30) -> dict[str, int]:
                     summary.get("bodyBatteryHighestValue"),
                     summary.get("averageStressLevel"),
                     summary.get("totalSteps"),
+                    int(summary["totalKilocalories"]) if summary.get("totalKilocalories") else None,
+                    int(summary["activeKilocalories"]) if summary.get("activeKilocalories") else None,
+                    int(summary["bmrKilocalories"]) if summary.get("bmrKilocalories") else None,
                     json.dumps({"summary": summary, "hrv": locals().get("hrv")}, default=str),
                 ),
             )

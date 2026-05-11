@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from ..analysis import (
     acwr,
     activities,
+    calories,
     coach,
     comparisons,
     cycle,
@@ -15,6 +16,7 @@ from ..analysis import (
     pace_evolution,
     performance,
     personal_records,
+    profile as profile_analysis,
     races as races_analysis,
     recovery,
     strength,
@@ -86,6 +88,8 @@ def dashboard() -> dict:
         "coach_schedule": coach.coach_schedule(),
         "coach_today": coach.coach_today(),
         "strength": strength.strength_dashboard(),
+        "profile": profile_analysis.profile_dashboard(),
+        "calories": calories.calories_dashboard(30),
         "ai_available": bool(__import__("os").getenv("ANTHROPIC_API_KEY", "").strip()),
     }
 
@@ -196,6 +200,16 @@ def get_coach_today() -> dict:
 @app.get("/api/strength")
 def get_strength() -> dict:
     return strength.strength_dashboard()
+
+
+@app.get("/api/profile")
+def get_profile() -> dict:
+    return profile_analysis.profile_dashboard()
+
+
+@app.get("/api/calories")
+def get_calories(days: int = 30) -> dict:
+    return calories.calories_dashboard(days)
 
 
 @app.get("/api/strength/{routine_id}")

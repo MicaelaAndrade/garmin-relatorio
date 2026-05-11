@@ -50,6 +50,9 @@ CREATE TABLE IF NOT EXISTS daily_metrics (
     body_battery    INTEGER,                  -- max do dia
     stress_avg      INTEGER,
     steps           INTEGER,
+    total_kcal      INTEGER,                  -- gasto total do dia
+    active_kcal     INTEGER,                  -- gasto por atividade
+    bmr_kcal        INTEGER,                  -- gasto basal (metabolismo de repouso)
     raw             TEXT
 );
 
@@ -148,6 +151,28 @@ CREATE TABLE IF NOT EXISTS scheduled_workouts (
 
 CREATE INDEX IF NOT EXISTS idx_scheduled_date ON scheduled_workouts(scheduled_date);
 
+CREATE TABLE IF NOT EXISTS user_profile (
+    user_id         INTEGER PRIMARY KEY,
+    birth_date      TEXT,                     -- YYYY-MM-DD
+    gender          TEXT,                     -- 'FEMALE' | 'MALE' | 'OTHER'
+    locale          TEXT,
+    max_hr_override INTEGER,                  -- manual override (ex: 182 do exame de esteira)
+    resting_hr_override INTEGER,
+    raw             TEXT,
+    updated_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS biometrics (
+    date            TEXT NOT NULL PRIMARY KEY,  -- YYYY-MM-DD
+    weight_g        INTEGER,                  -- gramas (Garmin armazena assim)
+    height_cm       REAL,
+    vo2max_running  REAL,
+    vo2max_cycling  REAL,
+    ftp_watts       INTEGER,
+    ftp_auto        INTEGER DEFAULT 0,
+    raw             TEXT
+);
+
 CREATE TABLE IF NOT EXISTS strength_routines (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     source          TEXT NOT NULL,            -- 'mfit'
@@ -215,6 +240,10 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE activities ADD COLUMN avg_speed_kmh REAL")
     if "avg_cadence" not in cols:
         conn.execute("ALTER TABLE activities ADD COLUMN avg_cadence REAL")
+    dm_cols = {row[1] for row in conn.execute("PRAGMA table_info(daily_metrics)").fetchall()}
+    for kcal_col in ("total_kcal", "active_kcal", "bmr_kcal"):
+        if kcal_col not in dm_cols:
+            conn.execute(f"ALTER TABLE daily_metrics ADD COLUMN {kcal_col} INTEGER")
 
 
 @contextmanager

@@ -12,6 +12,27 @@ import pandas as pd
 from ..db import connect
 
 
+def zones_from_raw(raw: dict | None) -> dict[str, int] | None:
+    """Extrai hrTimeInZone_0..6 em segundos.
+
+    IMPORTANTE: a API live do Garmin retorna em segundos (ex: 213.0),
+    enquanto o export GDPR retorna em milissegundos (ex: 794510).
+    Heuristica: se a soma > 30000, assume ms; senao assume segundos.
+    """
+    if not raw:
+        return None
+    keys = [f"hrTimeInZone_{i}" for i in range(7)]
+    vals = {k: raw.get(k) for k in keys if raw.get(k)}
+    if not vals:
+        return None
+    total = sum(float(v) for v in vals.values())
+    divisor = 1000.0 if total > 30000 else 1.0
+    return {
+        k.replace("hrTimeInZone_", "z"): int(float(v) / divisor)
+        for k, v in vals.items()
+    }
+
+
 def _zones_for_activity(raw_str: str | None) -> dict[str, int] | None:
     if not raw_str:
         return None
@@ -19,14 +40,7 @@ def _zones_for_activity(raw_str: str | None) -> dict[str, int] | None:
         raw = json.loads(raw_str)
     except json.JSONDecodeError:
         return None
-    zones = {}
-    for i in range(6):
-        k = f"hrTimeInZone_{i}"
-        v = raw.get(k)
-        if v is not None:
-            # exporta GDPR vem em ms; live API tambem em ms
-            zones[f"z{i}"] = int(v / 1000)
-    return zones if zones else None
+    return zones_from_raw(raw)
 
 
 def weekly_zone_distribution(days: int = 84, sport: str | None = None) -> list[dict]:

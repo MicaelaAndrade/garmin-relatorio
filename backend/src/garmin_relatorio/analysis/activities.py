@@ -30,12 +30,8 @@ def recent_activities(limit: int = 20) -> list[dict]:
         try:
             raw = json.loads(d.pop("raw") or "{}")
             d["name"] = raw.get("name") or raw.get("activityName")
-            # tempo nas zonas se disponivel
-            zones = {}
-            for i in range(6):
-                k = f"hrTimeInZone_{i}"
-                if k in raw and raw[k]:
-                    zones[f"z{i}"] = int(raw[k] / 1000)  # ms -> s
+            from .zones_distribution import zones_from_raw
+            zones = zones_from_raw(raw)
             if zones:
                 d["zones_s"] = zones
         except Exception:

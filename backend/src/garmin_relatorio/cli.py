@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_export.add_argument(
         "--what",
-        choices=["all", "activities", "sleep", "daily", "vo2max", "predictions", "menstrual"],
+        choices=["all", "activities", "sleep", "daily", "vo2max", "predictions", "menstrual", "profile", "biometrics"],
         default="all",
     )
 
@@ -110,6 +110,10 @@ def main(argv: list[str] | None = None) -> int:
             print(garmin_export.ingest_race_predictions())
         elif args.what == "menstrual":
             print(garmin_export.ingest_menstrual_cycles())
+        elif args.what == "profile":
+            print(garmin_export.ingest_user_profile())
+        elif args.what == "biometrics":
+            print(garmin_export.ingest_biometrics())
 
     elif args.cmd == "seed-races":
         from .ingest import races_seed

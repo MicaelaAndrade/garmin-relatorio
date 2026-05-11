@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -116,6 +116,17 @@ def _cm_to_m(cm: float | int | None) -> float | None:
     return float(cm) / 100.0 if cm else None
 
 
+# GDPR export reporta calories em kJ (kilojoules), nao em kcal.
+# Live API reporta em kcal direto. Divisor de 4.184 converte kJ -> kcal.
+_KJ_TO_KCAL = 4.184
+
+
+def _kj_to_kcal(value: float | int | None) -> int | None:
+    if value is None:
+        return None
+    return int(float(value) / _KJ_TO_KCAL)
+
+
 def _epoch_ms_to_iso(ms: float | int | None) -> str:
     if not ms:
         return ""
@@ -183,7 +194,7 @@ def ingest_activities() -> dict[str, int]:
                             _extract_speed(act, sport),
                             _extract_cadence(act, sport),
                             elev_m,
-                            int(act["calories"]) if act.get("calories") else None,
+                            _kj_to_kcal(act.get("calories")),
                             act.get("activityTrainingLoad"),
                             json.dumps(act, default=str),
                         ),
@@ -268,8 +279,9 @@ def ingest_daily_metrics() -> dict[str, int]:
                 conn.execute(
                     """
                     INSERT OR REPLACE INTO daily_metrics
-                    (date, resting_hr, hrv_overnight, body_battery, stress_avg, steps, raw)
-                    VALUES (?,?,?,?,?,?,?)
+                    (date, resting_hr, hrv_overnight, body_battery, stress_avg, steps,
+                     total_kcal, active_kcal, bmr_kcal, raw)
+                    VALUES (?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         d,
@@ -278,6 +290,9 @@ def ingest_daily_metrics() -> dict[str, int]:
                         bb.get("endOfDayValue") or bb.get("dailyMaxBodyBattery"),
                         stress_obj.get("averageStressLevel") or stress_obj.get("avgStressLevel"),
                         day.get("totalSteps"),
+                        int(day["totalKilocalories"]) if day.get("totalKilocalories") else None,
+                        int(day["activeKilocalories"]) if day.get("activeKilocalories") else None,
+                        int(day["bmrKilocalories"]) if day.get("bmrKilocalories") else None,
                         json.dumps(
                             {"uds": day, "health": health_metrics}, default=str
                         ),
@@ -479,8 +494,152 @@ def ingest_menstrual_cycles() -> dict[str, int]:
     return {"cycles": cycles_inserted, "logs": logs_inserted}
 
 
+def ingest_user_profile() -> dict[str, int]:
+    """Le user_profile.json + user_settings.json -> tabela user_profile (1 linha)."""
+    user_dir = _export_dir() / "DI-Connect-User"
+    profile_f = user_dir / "user_profile.json"
+    settings_f = user_dir / "user_settings.json"
+    if not profile_f.exists():
+        log.warning("user_profile.json nao encontrado em %s", user_dir)
+        return {"inserted": 0}
+
+    profile = json.loads(profile_f.read_text())
+    settings = json.loads(settings_f.read_text()) if settings_f.exists() else {}
+
+    # user_id pode vir do diretorio Wellness (ex: 75928777_*). Pega o primeiro.
+    wellness = _export_dir() / "DI-Connect-Wellness"
+    user_id = 0
+    for f in wellness.glob("*_userBioMetrics.json"):
+        try:
+            user_id = int(f.name.split("_", 1)[0])
+            break
+        except ValueError:
+            pass
+
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO user_profile
+            (user_id, birth_date, gender, locale, raw, updated_at)
+            VALUES (?,?,?,?,?,?)
+            """,
+            (
+                user_id,
+                profile.get("birthDate"),
+                profile.get("gender"),
+                settings.get("preferredLocale"),
+                json.dumps({"profile": profile, "settings": settings}, default=str),
+                datetime.now().isoformat(timespec="seconds"),
+            ),
+        )
+    log.info("User profile ingerido (user_id=%d)", user_id)
+    return {"inserted": 1}
+
+
+def ingest_biometrics() -> dict[str, int]:
+    """Le userBioMetricProfileData.json + userBioMetrics.json -> timeline em biometrics."""
+    wellness = _export_dir() / "DI-Connect-Wellness"
+    inserted = 0
+    rows: list[dict] = []
+
+    def _num(v: Any) -> float | None:
+        """Cast seguro pra numero. Garmin as vezes encapsula valores em dicts
+        tipo {'weight': 75000.0, 'sourceType': '...'} — extrai o valor interno."""
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, dict):
+            # tenta chaves padrao do garmin (weight, height, value)
+            for key in ("weight", "height", "value", "vo2Max"):
+                inner = v.get(key)
+                if isinstance(inner, (int, float)):
+                    return float(inner)
+        return None
+
+    # Snapshot atual
+    snap_f = next(wellness.glob("*_userBioMetricProfileData.json"), None)
+    if snap_f:
+        for entry in json.loads(snap_f.read_text()):
+            if not isinstance(entry, dict):
+                continue
+            w = _num(entry.get("weight"))
+            ftp = _num(entry.get("functionalThresholdPower"))
+            rows.append({
+                "date": date.today().isoformat(),
+                "weight_g": int(w) if w else None,
+                "height_cm": _num(entry.get("height")),
+                "vo2max_running": _num(entry.get("vo2Max")),
+                "vo2max_cycling": None,
+                "ftp_watts": int(ftp) if ftp else None,
+                "ftp_auto": 0,
+                "raw": json.dumps(entry, default=str),
+            })
+
+    # Timeline historica
+    timeline_f = next(wellness.glob("*_userBioMetrics.json"), None)
+    if timeline_f:
+        data = json.loads(timeline_f.read_text())
+        for entry in data:
+            if not isinstance(entry, dict):
+                continue
+            meta = entry.get("metaData") or {}
+            cal_date = (meta.get("calendarDate") or "").split("T")[0]
+            if not cal_date:
+                continue
+            sport_id = entry.get("sportId")
+            vo2 = _num(entry.get("vo2MaxRunning"))
+            w = _num(entry.get("weight"))
+            ftp = _num(entry.get("functionalThresholdPower"))
+            rows.append({
+                "date": cal_date,
+                "weight_g": int(w) if w else None,
+                "height_cm": _num(entry.get("height")),
+                "vo2max_running": vo2 if sport_id != 2 else None,
+                "vo2max_cycling": vo2 if sport_id == 2 else None,
+                "ftp_watts": int(ftp) if ftp else None,
+                "ftp_auto": 1 if entry.get("ftpAutoDetected") else 0,
+                "raw": json.dumps(entry, default=str),
+            })
+
+    if not rows:
+        log.warning("Nenhum dado biometrico no export")
+        return {"inserted": 0}
+
+    # Merge por data (uma data pode ter multiplas entries — pega valores nao-nulos)
+    by_date: dict[str, dict] = {}
+    for r in rows:
+        existing = by_date.setdefault(r["date"], {"date": r["date"]})
+        for k, v in r.items():
+            if v is not None and existing.get(k) in (None, 0):
+                existing[k] = v
+
+    with connect() as conn:
+        for d, merged in by_date.items():
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO biometrics
+                (date, weight_g, height_cm, vo2max_running, vo2max_cycling, ftp_watts, ftp_auto, raw)
+                VALUES (?,?,?,?,?,?,?,?)
+                """,
+                (
+                    merged["date"],
+                    merged.get("weight_g"),
+                    merged.get("height_cm"),
+                    merged.get("vo2max_running"),
+                    merged.get("vo2max_cycling"),
+                    merged.get("ftp_watts"),
+                    merged.get("ftp_auto") or 0,
+                    merged.get("raw"),
+                ),
+            )
+            inserted += 1
+    log.info("Biometrics ingeridos: %d datas", inserted)
+    return {"inserted": inserted}
+
+
 def ingest_all() -> dict[str, dict[str, int]]:
     return {
+        "user_profile": ingest_user_profile(),
+        "biometrics": ingest_biometrics(),
         "activities": ingest_activities(),
         "sleep": ingest_sleep(),
         "daily_metrics": ingest_daily_metrics(),
