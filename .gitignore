@@ -1,0 +1,43 @@
+# Credenciais e dados pessoais — NUNCA comitar
+.env
+.env.*
+!.env.example
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/exports/*
+!backend/data/exports/.gitkeep
+
+# Dados ingeridos do MFit (PDFs privados do coach)
+backend/data/mfit/
+
+# Logs locais
+backend/data/cron.log
+*.log
+
+# Backup do VS Code File History (frequentemente contém .env)
+.history/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Node / Vite
+node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# OAuth tokens (Strava)
+backend/data/strava_token.json
+backend/data/garmin_session/

@@ -1,0 +1,13 @@
+[Unit]
+Description=Roda Garmin Relatorio ingest 1x/dia
+Requires=garmin-relatorio-ingest.service
+
+[Timer]
+# Diariamente as 07:00 com jitter ate 30min pra nao bater todo dia no mesmo segundo
+OnCalendar=*-*-* 07:00:00
+RandomizedDelaySec=30min
+Persistent=true
+Unit=garmin-relatorio-ingest.service
+
+[Install]
+WantedBy=timers.target

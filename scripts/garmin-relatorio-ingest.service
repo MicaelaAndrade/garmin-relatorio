@@ -1,0 +1,12 @@
+[Unit]
+Description=Garmin Relatorio — ingest diario
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Edite GARMIN_RELATORIO_DIR se o projeto estiver em outro path
+Environment=GARMIN_RELATORIO_DIR=%h/Documentos/garmin-relatorio
+Environment=GARMIN_RELATORIO_DAYS=7
+ExecStart=%h/Documentos/garmin-relatorio/scripts/garmin-relatorio-cron.sh
+# Sem Restart= — falhas individuais sao toleradas dentro do script

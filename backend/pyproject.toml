@@ -1,0 +1,39 @@
+[project]
+name = "garmin-relatorio"
+version = "0.1.0"
+description = "Dashboard de evolucao em triathlon: Garmin + Strava com risco de lesao"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "garminconnect>=0.2.20",
+    "stravalib>=2.1",
+    "fitparse>=1.2.0",
+    "pandas>=2.2.0",
+    "numpy>=1.26.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.9.0",
+    "httpx>=0.27.0",
+    "anthropic>=0.40.0",
+    "pypdf>=6.11.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/garmin_relatorio"]
+
+[project.scripts]
+garmin-relatorio = "garmin_relatorio.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
