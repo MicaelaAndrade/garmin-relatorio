@@ -243,8 +243,10 @@ O wrapper pula automaticamente fontes sem credencial (Garmin, Strava) e nunca ab
 - [x] ~~Link "abrir no Garmin Connect" em cada atividade da tabela~~ ✓
 - [x] ~~Plano semanal sugerido baseado em ACWR~~ ✓
 - [x] ~~Cycle phase tracker (dados estão no export)~~ ✓
-- [ ] Gráfico de pace por modalidade ao longo do tempo
-- [ ] Distribuição de tempo nas zonas Z1-Z5 por treino
+- [x] ~~Gráfico de pace por modalidade ao longo do tempo~~ ✓ (mensal corrida/bike/nado com cadência)
+- [x] ~~Distribuição de tempo nas zonas Z1-Z5 por treino~~ ✓ (barra empilhada por sessão)
+- [x] ~~Ingest dos treinos prescritos pelo coach (Treius/Garmin Connect)~~ ✓
+- [x] ~~Importar rotina de fortalecimento (PDF MFit Personal)~~ ✓
 - [ ] Export PDF do relatório mensal
 
 ---
