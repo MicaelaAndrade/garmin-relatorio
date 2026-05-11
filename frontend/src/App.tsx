@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CalendarHeatmap } from "./components/CalendarHeatmap";
+import { CaloriesCard } from "./components/CaloriesCard";
 import { CoachScheduleCard } from "./components/CoachScheduleCard";
 import { CurrentWeekCard } from "./components/CurrentWeekCard";
 import { CycleCard } from "./components/CycleCard";
@@ -9,6 +10,7 @@ import { OvertrainingCard } from "./components/OvertrainingCard";
 import { PaceEvolutionCard } from "./components/PaceEvolutionCard";
 import { PerformanceCard } from "./components/PerformanceCard";
 import { PersonalRecordsCard } from "./components/PersonalRecordsCard";
+import { ProfileCard } from "./components/ProfileCard";
 import { RaceComparisonCard } from "./components/RaceComparisonCard";
 import { RacesCard } from "./components/RacesCard";
 import { RecentActivitiesTable } from "./components/RecentActivitiesTable";
@@ -19,6 +21,7 @@ import { Vo2maxCard } from "./components/Vo2maxCard";
 import { VolumeChart } from "./components/VolumeChart";
 import { WeeklySummaryCard } from "./components/WeeklySummaryCard";
 import { ZonesCard } from "./components/ZonesCard";
+import { ZonesPerActivityCard } from "./components/ZonesPerActivityCard";
 import { fetchDashboard, type Dashboard } from "./api/client";
 
 export default function App() {
@@ -62,6 +65,10 @@ export default function App() {
       </header>
 
       <div className="grid">
+        <div className="section-title">Perfil</div>
+        <div className="card col-6"><ProfileCard data={data.profile} /></div>
+        <div className="card col-6"><CaloriesCard data={data.calories} /></div>
+
         <div className="section-title">Resumo de hoje</div>
         <div className="card col-3"><CurrentWeekCard data={data.current_week} /></div>
         <div className="card col-3"><InjuryRiskCard current={data.injury_risk} series={data.acwr_series} /></div>
@@ -101,6 +108,7 @@ export default function App() {
           />
         </div>
         <div className="card col-12"><PaceEvolutionCard data={data.pace_evolution} /></div>
+        <div className="card col-12"><ZonesPerActivityCard data={data.recent_activities} /></div>
 
         <div className="card col-12">
           <CalendarHeatmap data={data.calendar} />

@@ -180,6 +180,8 @@ export interface Dashboard {
   coach_schedule: CoachSchedule;
   coach_today: CoachToday;
   strength: StrengthDashboard;
+  profile: ProfileDashboard;
+  calories: CaloriesDashboard;
   ai_available: boolean;
 }
 
@@ -384,6 +386,63 @@ export interface StrengthRoutineSummary {
 
 export interface StrengthRoutine extends StrengthRoutineSummary {
   exercises: StrengthExercise[];
+}
+
+export interface CaloriesDay {
+  date: string;
+  total: number | null;
+  active: number | null;
+  bmr: number | null;
+}
+
+export interface CaloriesBySport {
+  sport: string;
+  label: string;
+  sessions: number;
+  total_kcal: number;
+  avg_per_session: number;
+  avg_per_hour: number;
+}
+
+export interface CaloriesDashboard {
+  available: boolean;
+  days: number;
+  current: CaloriesDay | null;
+  average: { total: number | null; active: number | null; bmr: number | null };
+  week_total_kcal: number;
+  week_active_kcal: number;
+  daily_series: CaloriesDay[];
+  by_sport: CaloriesBySport[];
+}
+
+export interface ProfileWeightPoint { date: string; kg: number }
+
+export interface ProfileDashboard {
+  available: boolean;
+  age: number | null;
+  gender: string | null;
+  birth_date: string | null;
+  max_hr_override: number | null;
+  weight: {
+    kg: number | null;
+    date: string | null;
+    first_kg: number | null;
+    first_date: string | null;
+    delta_kg: number | null;
+    series: ProfileWeightPoint[];
+  };
+  height_cm: number | null;
+  bmi: number | null;
+  bmi_zone: "abaixo" | "saudavel" | "sobrepeso" | "obesidade" | null;
+  vo2max: {
+    value: number | null;
+    date: string | null;
+    first_value: number | null;
+    first_date: string | null;
+    delta: number | null;
+  };
+  ftp_watts: number | null;
+  ftp_date: string | null;
 }
 
 export interface StrengthDashboard {

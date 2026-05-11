@@ -175,6 +175,154 @@ header.top .sub { color: var(--muted); font-size: 13px; }
   margin-bottom: 8px;
 }
 
+/* Calorias */
+.cal-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.cal-stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cal-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+.cal-stat-value { font-size: 22px; font-weight: 700; font-family: ui-monospace, monospace; line-height: 1.1; }
+.cal-stat-unit { font-size: 10px; color: var(--muted); }
+.cal-by-sport { display: flex; flex-direction: column; gap: 2px; }
+.cal-sport-row {
+  display: grid;
+  grid-template-columns: 22px 1fr 50px 1fr 90px;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 12px;
+  align-items: center;
+}
+.cal-sport-name { font-weight: 500; }
+.cal-sport-sessions { color: var(--muted); font-family: ui-monospace, monospace; text-align: right; }
+.cal-sport-total { font-family: ui-monospace, monospace; }
+.cal-sport-rate { color: var(--info); font-family: ui-monospace, monospace; font-size: 11px; text-align: right; }
+
+/* Perfil */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.profile-stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profile-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.profile-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  line-height: 1.1;
+}
+.profile-unit { font-size: 11px; color: var(--muted); }
+.profile-delta {
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  margin-top: 4px;
+}
+
+/* Zonas por treino */
+.zpa-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.zpa-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.zpa-tab {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.zpa-tab:hover { border-color: var(--info); }
+.zpa-tab-active { background: rgba(96, 165, 250, 0.15); border-color: var(--info); }
+.zpa-list { display: flex; flex-direction: column; gap: 2px; }
+.zpa-row {
+  display: grid;
+  grid-template-columns: 22px 50px 1fr 60px 2fr 50px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 4px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.zpa-row:last-of-type { border-bottom: none; }
+.zpa-row.zpa-header {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  padding: 4px 4px 6px;
+}
+.zpa-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zpa-time { font-family: ui-monospace, monospace; color: var(--muted); }
+.zpa-dom {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  text-align: center;
+}
+.zpa-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--border);
+}
+.zpa-bar-empty {
+  color: var(--muted);
+  font-size: 11px;
+  background: transparent;
+  padding-left: 4px;
+}
+.zpa-seg { display: block; height: 100%; }
+.zpa-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--muted);
+}
+.zpa-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+@media (max-width: 768px) {
+  .zpa-row { grid-template-columns: 18px 40px 1fr 50px 80px 40px; gap: 6px; font-size: 11px; }
+  .zpa-row > :nth-child(5) { grid-column: 1 / -1; margin-top: 4px; }
+}
+
 .cal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .cal-subtitle { color: var(--muted); font-size: 12px; }
 .cal-subtitle strong { color: var(--text); }
