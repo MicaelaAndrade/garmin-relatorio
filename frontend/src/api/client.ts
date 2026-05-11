@@ -393,6 +393,10 @@ export interface CaloriesDay {
   total: number | null;
   active: number | null;
   bmr: number | null;
+  bmr_per_hour?: number | null;
+  workout_minutes?: number;
+  workout_kcal?: number;
+  workout_per_hour?: number | null;
 }
 
 export interface CaloriesBySport {
@@ -404,6 +408,28 @@ export interface CaloriesBySport {
   avg_per_hour: number;
 }
 
+export interface CaloriesMacros {
+  tdee_target: number;
+  protein_g: number;
+  protein_kcal: number;
+  carb_g: number;
+  carb_kcal: number;
+  fat_g: number;
+  fat_kcal: number;
+  protein_pct: number;
+  carb_pct: number;
+  fat_pct: number;
+}
+
+export interface CaloriesReferences {
+  available: boolean;
+  bmr_garmin?: number | null;
+  bmr_mifflin?: number;
+  bmr_harris?: number;
+  bmr_diff_garmin_vs_mifflin?: number | null;
+  macros?: CaloriesMacros | null;
+}
+
 export interface CaloriesDashboard {
   available: boolean;
   days: number;
@@ -413,6 +439,7 @@ export interface CaloriesDashboard {
   week_active_kcal: number;
   daily_series: CaloriesDay[];
   by_sport: CaloriesBySport[];
+  references: CaloriesReferences;
 }
 
 export interface ProfileWeightPoint { date: string; kg: number }

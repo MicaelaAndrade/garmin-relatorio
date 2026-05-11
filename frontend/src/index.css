@@ -193,6 +193,41 @@ header.top .sub { color: var(--muted); font-size: 13px; }
 .cal-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
 .cal-stat-value { font-size: 22px; font-weight: 700; font-family: ui-monospace, monospace; line-height: 1.1; }
 .cal-stat-unit { font-size: 10px; color: var(--muted); }
+.cal-rate { font-size: 10px; font-family: ui-monospace, monospace; margin-top: 4px; }
+.cal-note {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(96, 165, 250, 0.08);
+  border-left: 3px solid var(--info);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cal-refs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.cal-ref {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cal-ref-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+.cal-ref-value { font-size: 16px; font-weight: 700; font-family: ui-monospace, monospace; }
+.cal-ref-unit { font-size: 10px; color: var(--muted); }
+.macros-bar { display: flex; height: 12px; border-radius: 4px; overflow: hidden; background: var(--border); }
+.macros-seg { display: block; height: 100%; }
+.macros-seg.macros-protein, .macros-dot.macros-protein { background: #ef4444; }
+.macros-seg.macros-carb, .macros-dot.macros-carb { background: #fbbf24; }
+.macros-seg.macros-fat, .macros-dot.macros-fat { background: #60a5fa; }
+.macros-legend { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 12px; }
+.macros-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.cal-macros-note { margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.5; }
 .cal-by-sport { display: flex; flex-direction: column; gap: 2px; }
 .cal-sport-row {
   display: grid;
@@ -464,6 +499,7 @@ header.top .sub { color: var(--muted); font-size: 13px; }
 .pace-block-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
 .pace-delta { font-size: 11px; font-family: ui-monospace, monospace; }
 .pace-cadence { font-size: 11px; color: var(--muted); margin-left: auto; }
+.pace-current { font-family: ui-monospace, monospace; font-size: 12px; font-weight: 700; }
 
 /* Training plan */
 .plan-title-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }

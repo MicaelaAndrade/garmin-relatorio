@@ -75,13 +75,16 @@ def _extract_cadence(act: dict, sport: str) -> float | None:
 def _extract_speed(act: dict, sport: str) -> float | None:
     """Velocidade em km/h. Bike e walking usam isso em vez de pace.
 
-    Prioriza avgSpeed (m/s) se presente, senao calcula de distancia/duracao.
+    GDPR export reporta avgSpeed em (m/s) / 10 — multiplicar por 36 pra km/h.
+    Live API reporta em m/s direto (multiplicaria por 3.6), mas e' tratado
+    em ingest/garmin.py. Aqui assumimos formato do export.
+    Fallback: calcula de distancia (cm) / duracao (ms).
     """
     if sport not in ("bike", "walking"):
         return None
     avg = act.get("avgSpeed") or act.get("averageSpeed")
     if avg:
-        return round(float(avg) * 3.6, 2)
+        return round(float(avg) * 36.0, 2)
     duration_ms = act.get("duration") or 0
     distance_cm = act.get("distance") or 0
     if duration_ms <= 0 or distance_cm <= 0:

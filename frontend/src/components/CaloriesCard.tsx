@@ -45,20 +45,45 @@ export function CaloriesCard({ data }: { data: CaloriesDashboard }) {
       </div>
 
       <div className="cal-stats">
-        <div className="cal-stat">
+        <div
+          className="cal-stat"
+          title="Soma de BMR (basal, 24h) + Ativo (durante exercícios) do dia"
+        >
           <span className="cal-stat-label">Total hoje</span>
           <span className="cal-stat-value">{current.total ?? "—"}</span>
-          <span className="cal-stat-unit">kcal</span>
+          <span className="cal-stat-unit">kcal · dia inteiro</span>
         </div>
-        <div className="cal-stat">
+        <div
+          className="cal-stat"
+          title={
+            current.workout_per_hour
+              ? `${current.workout_per_hour} kcal/h durante o(s) treino(s). Inclui o ativo + parte do BMR daquela hora.`
+              : "Sem treino registrado hoje"
+          }
+        >
           <span className="cal-stat-label">Ativo hoje</span>
           <span className="cal-stat-value" style={{ color: "var(--accent)" }}>{current.active ?? "—"}</span>
-          <span className="cal-stat-unit">kcal</span>
+          <span className="cal-stat-unit">
+            kcal{current.workout_minutes ? ` · ${current.workout_minutes}min treino` : ""}
+          </span>
+          {current.workout_per_hour != null && (
+            <span className="cal-rate" style={{ color: "var(--accent)" }}>
+              ≈ {current.workout_per_hour} kcal/h durante treino
+            </span>
+          )}
         </div>
-        <div className="cal-stat">
+        <div
+          className="cal-stat"
+          title="Basal Metabolic Rate — gasto de repouso pelas 24h. Manter o corpo funcionando."
+        >
           <span className="cal-stat-label">BMR (basal)</span>
           <span className="cal-stat-value" style={{ color: "var(--info)" }}>{current.bmr ?? "—"}</span>
-          <span className="cal-stat-unit">kcal</span>
+          <span className="cal-stat-unit">kcal · 24h</span>
+          {current.bmr_per_hour != null && (
+            <span className="cal-rate" style={{ color: "var(--info)" }}>
+              ≈ {current.bmr_per_hour} kcal/h em repouso
+            </span>
+          )}
         </div>
         <div className="cal-stat">
           <span className="cal-stat-label">Semana atual</span>
@@ -66,6 +91,15 @@ export function CaloriesCard({ data }: { data: CaloriesDashboard }) {
           <span className="cal-stat-unit">kcal · ativo {data.week_active_kcal}</span>
         </div>
       </div>
+
+      {current.workout_per_hour != null && current.bmr_per_hour != null && (
+        <div className="cal-note">
+          💡 Durante seu treino você queima <strong>{current.workout_per_hour} kcal/h</strong>{" "}
+          contra <strong>{current.bmr_per_hour} kcal/h</strong> em repouso —{" "}
+          <strong>{Math.round(current.workout_per_hour / current.bmr_per_hour)}× mais</strong>.
+          O BMR total parece alto porque acumula as 24h do dia.
+        </div>
+      )}
 
       <div style={{ marginTop: 12 }}>
         <div className="label" style={{ marginBottom: 4 }}>Diário (BMR + Ativo)</div>
@@ -99,6 +133,72 @@ export function CaloriesCard({ data }: { data: CaloriesDashboard }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {data.references.available && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+          <div className="label" style={{ marginBottom: 8 }}>
+            Referências (média {data.days}d)
+          </div>
+          <div className="cal-refs">
+            <div className="cal-ref">
+              <span className="cal-ref-label">TDEE médio</span>
+              <span className="cal-ref-value">{data.average.total?.toLocaleString("pt-BR")}</span>
+              <span className="cal-ref-unit">kcal/dia (gasto)</span>
+            </div>
+            <div className="cal-ref">
+              <span className="cal-ref-label">BMR Garmin</span>
+              <span className="cal-ref-value">{data.references.bmr_garmin?.toLocaleString("pt-BR")}</span>
+              <span className="cal-ref-unit">kcal · usado pelo seu relógio</span>
+            </div>
+            <div className="cal-ref">
+              <span className="cal-ref-label">BMR Mifflin-StJeor</span>
+              <span className="cal-ref-value">{data.references.bmr_mifflin?.toLocaleString("pt-BR")}</span>
+              <span className="cal-ref-unit">
+                kcal · fórmula científica
+                {data.references.bmr_diff_garmin_vs_mifflin != null && (
+                  <span style={{ marginLeft: 4, color: Math.abs(data.references.bmr_diff_garmin_vs_mifflin) > 200 ? "var(--warn)" : "var(--muted)" }}>
+                    (Garmin {data.references.bmr_diff_garmin_vs_mifflin > 0 ? "+" : ""}{data.references.bmr_diff_garmin_vs_mifflin})
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {data.references.macros && (
+            <>
+              <div className="label" style={{ marginTop: 14, marginBottom: 6 }}>
+                Macros sugeridos pra manutenção ({data.references.macros.tdee_target} kcal)
+              </div>
+              <div className="macros-bar">
+                <span className="macros-seg macros-protein" style={{ flex: data.references.macros.protein_pct }} title={`Proteína: ${data.references.macros.protein_g}g (${data.references.macros.protein_pct}%)`} />
+                <span className="macros-seg macros-carb" style={{ flex: data.references.macros.carb_pct }} title={`Carbo: ${data.references.macros.carb_g}g (${data.references.macros.carb_pct}%)`} />
+                <span className="macros-seg macros-fat" style={{ flex: data.references.macros.fat_pct }} title={`Gordura: ${data.references.macros.fat_g}g (${data.references.macros.fat_pct}%)`} />
+              </div>
+              <div className="macros-legend">
+                <div>
+                  <span className="macros-dot macros-protein" /> Proteína
+                  <strong> {data.references.macros.protein_g}g</strong>
+                  <span className="muted"> · {data.references.macros.protein_pct}% · {data.references.macros.protein_kcal} kcal</span>
+                </div>
+                <div>
+                  <span className="macros-dot macros-carb" /> Carbo
+                  <strong> {data.references.macros.carb_g}g</strong>
+                  <span className="muted"> · {data.references.macros.carb_pct}% · {data.references.macros.carb_kcal} kcal</span>
+                </div>
+                <div>
+                  <span className="macros-dot macros-fat" /> Gordura
+                  <strong> {data.references.macros.fat_g}g</strong>
+                  <span className="muted"> · {data.references.macros.fat_pct}% · {data.references.macros.fat_kcal} kcal</span>
+                </div>
+              </div>
+              <p className="cal-macros-note">
+                Proteína calculada como 1.8 g/kg do seu peso (faixa atleta 1.6-2.2 g/kg). Gordura ~25% das kcal. Carbo preenche o restante.
+                Esses são valores pra <strong>manter o peso</strong> — pra perder, déficit de 300-500 kcal; pra ganhar, superávit similar.
+              </p>
+            </>
+          )}
         </div>
       )}
     </>
