@@ -19,10 +19,13 @@ from ..analysis import (
     profile as profile_analysis,
     races as races_analysis,
     recovery,
+    sleep_detail,
     strength,
+    wellness,
     training_plan,
     volume,
     weekly_summary,
+    year_over_year,
     zones_distribution,
 )
 from ..db import init_db
@@ -90,6 +93,9 @@ def dashboard() -> dict:
         "strength": strength.strength_dashboard(),
         "profile": profile_analysis.profile_dashboard(),
         "calories": calories.calories_dashboard(30),
+        "sleep_detail": sleep_detail.sleep_detail(30),
+        "wellness": wellness.wellness_dashboard(30),
+        "year_over_year": year_over_year.year_over_year(),
         "ai_available": bool(__import__("os").getenv("ANTHROPIC_API_KEY", "").strip()),
     }
 
@@ -210,6 +216,11 @@ def get_profile() -> dict:
 @app.get("/api/calories")
 def get_calories(days: int = 30) -> dict:
     return calories.calories_dashboard(days)
+
+
+@app.get("/api/sleep-detail")
+def get_sleep_detail(days: int = 30) -> dict:
+    return sleep_detail.sleep_detail(days)
 
 
 @app.get("/api/strength/{routine_id}")

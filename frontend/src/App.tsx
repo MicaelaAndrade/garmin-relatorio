@@ -15,9 +15,12 @@ import { RaceComparisonCard } from "./components/RaceComparisonCard";
 import { RacesCard } from "./components/RacesCard";
 import { RecentActivitiesTable } from "./components/RecentActivitiesTable";
 import { SleepCard } from "./components/SleepCard";
+import { SleepDetailCard } from "./components/SleepDetailCard";
 import { StrengthCard } from "./components/StrengthCard";
 import { TrainingPlanCard } from "./components/TrainingPlanCard";
 import { Vo2maxCard } from "./components/Vo2maxCard";
+import { WellnessCard } from "./components/WellnessCard";
+import { YearOverYearCard } from "./components/YearOverYearCard";
 import { VolumeChart } from "./components/VolumeChart";
 import { WeeklySummaryCard } from "./components/WeeklySummaryCard";
 import { ZonesCard } from "./components/ZonesCard";
@@ -74,6 +77,10 @@ export default function App() {
         <div className="card col-3"><InjuryRiskCard current={data.injury_risk} series={data.acwr_series} /></div>
         <div className="card col-3"><OvertrainingCard data={data.overtraining} /></div>
         <div className="card col-3"><SleepCard sleep={data.sleep} readiness={data.readiness} /></div>
+
+        <div className="card col-12"><SleepDetailCard data={data.sleep_detail} /></div>
+        <div className="card col-12"><WellnessCard data={data.wellness} /></div>
+        <div className="card col-12"><YearOverYearCard data={data.year_over_year} /></div>
 
         <div className="card col-12">
           <WeeklySummaryCard aiAvailable={data.ai_available} />

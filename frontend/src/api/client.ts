@@ -182,6 +182,9 @@ export interface Dashboard {
   strength: StrengthDashboard;
   profile: ProfileDashboard;
   calories: CaloriesDashboard;
+  sleep_detail: SleepDetailDashboard;
+  wellness: WellnessDashboard;
+  year_over_year: YearOverYear;
   ai_available: boolean;
 }
 
@@ -386,6 +389,95 @@ export interface StrengthRoutineSummary {
 
 export interface StrengthRoutine extends StrengthRoutineSummary {
   exercises: StrengthExercise[];
+}
+
+export interface YoYSportCompare {
+  sport: string;
+  label: string;
+  this_sessions: number;
+  last_sessions: number;
+  this_distance_km: number;
+  last_distance_km: number;
+  this_duration_min: number;
+  last_duration_min: number;
+  this_pace_s_km: number | null;
+  last_pace_s_km: number | null;
+  pace_delta_s: number | null;
+}
+
+export interface YoYPeriod {
+  start: string;
+  end: string;
+  label: string;
+  sessions: number;
+  duration_min: number;
+  distance_km: number;
+  kcal: number;
+}
+
+export interface YearOverYear {
+  available: boolean;
+  this_period?: YoYPeriod;
+  last_period?: YoYPeriod;
+  deltas?: {
+    sessions: number;
+    duration_min: number;
+    distance_km: number;
+    kcal: number;
+    sessions_pct: number | null;
+    distance_pct: number | null;
+  };
+  by_sport_compare?: YoYSportCompare[];
+}
+
+export interface WellnessDay {
+  date: string;
+  body_battery: number | null;
+  stress: number | null;
+  rhr: number | null;
+  hrv: number | null;
+}
+
+export interface WellnessDashboard {
+  available: boolean;
+  days: number;
+  series: WellnessDay[];
+  avg_body_battery?: number | null;
+  avg_stress?: number | null;
+  avg_rhr?: number | null;
+  avg_hrv?: number | null;
+  stress_high_days?: number;
+  bb_low_days?: number;
+}
+
+export interface SleepNightDetail {
+  date: string;
+  total_min: number;
+  deep_min: number;
+  light_min: number;
+  rem_min: number;
+  awake_min: number;
+  total_h: number;
+  deep_pct: number;
+  rem_pct: number;
+  efficiency_pct: number | null;
+  score: number | null;
+}
+
+export interface SleepDetailDashboard {
+  available: boolean;
+  days: number;
+  series: SleepNightDetail[];
+  avg_total_h?: number;
+  avg_total_min?: number;
+  avg_deep_pct?: number;
+  avg_rem_pct?: number;
+  avg_efficiency_pct?: number | null;
+  avg_score?: number | null;
+  nights_short?: number;
+  nights_low_score?: number;
+  verdict?: "excelente" | "bom" | "regular" | "ruim";
+  message?: string;
 }
 
 export interface CaloriesDay {
