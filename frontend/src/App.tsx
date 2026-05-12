@@ -21,12 +21,13 @@ import { RecentActivitiesTable } from "./components/RecentActivitiesTable";
 import { SleepCard } from "./components/SleepCard";
 import { SleepDetailCard } from "./components/SleepDetailCard";
 import { StrengthCard } from "./components/StrengthCard";
+import { SwimTechniqueCard } from "./components/SwimTechniqueCard";
 import { TemperatureTrendCard } from "./components/TemperatureTrendCard";
 import { TrainingPlanCard } from "./components/TrainingPlanCard";
 import { VdotCard } from "./components/VdotCard";
 import { Vo2maxCard } from "./components/Vo2maxCard";
 import { WellnessCard } from "./components/WellnessCard";
-import { YearOverYearCard } from "./components/YearOverYearCard";
+import { YearOverYearCard, isYearOverYearAvailable } from "./components/YearOverYearCard";
 import { VolumeChart } from "./components/VolumeChart";
 import { WeeklySummaryCard } from "./components/WeeklySummaryCard";
 import { ZonesCard } from "./components/ZonesCard";
@@ -180,26 +181,28 @@ export default function App() {
           </div>
         )}
 
-        {tab === "all" && <div className="section-title">Perfil</div>}
-        <Card storageKey="profile" className="col-6" tabs={["today", "analysis"]} currentTab={tab}>
-          <ProfileCard data={data.profile} />
-        </Card>
+        {tab === "all" && <div className="section-title">Perfil &amp; resumo de hoje</div>}
+        <div className="col-6 stacked-col">
+          <Card storageKey="profile" tabs={["today", "analysis"]} currentTab={tab}>
+            <ProfileCard data={data.profile} />
+          </Card>
+          <div className="mini-grid-2x2">
+            <Card storageKey="current-week" tabs={["today", "analysis"]} currentTab={tab}>
+              <CurrentWeekCard data={data.current_week} />
+            </Card>
+            <Card storageKey="injury-risk" tabs={["today", "analysis"]} currentTab={tab}>
+              <InjuryRiskCard current={data.injury_risk} series={data.acwr_series} />
+            </Card>
+            <Card storageKey="overtraining" tabs={["today", "analysis"]} currentTab={tab}>
+              <OvertrainingCard data={data.overtraining} />
+            </Card>
+            <Card storageKey="sleep" tabs={["today", "analysis"]} currentTab={tab}>
+              <SleepCard sleep={data.sleep} readiness={data.readiness} />
+            </Card>
+          </div>
+        </div>
         <Card storageKey="calories" className="col-6" tabs={["today", "analysis"]} currentTab={tab}>
           <CaloriesCard data={data.calories} />
-        </Card>
-
-        {tab === "all" && <div className="section-title">Resumo de hoje</div>}
-        <Card storageKey="current-week" className="col-3" tabs={["today", "analysis"]} currentTab={tab}>
-          <CurrentWeekCard data={data.current_week} />
-        </Card>
-        <Card storageKey="injury-risk" className="col-3" tabs={["today", "analysis"]} currentTab={tab}>
-          <InjuryRiskCard current={data.injury_risk} series={data.acwr_series} />
-        </Card>
-        <Card storageKey="overtraining" className="col-3" tabs={["today", "analysis"]} currentTab={tab}>
-          <OvertrainingCard data={data.overtraining} />
-        </Card>
-        <Card storageKey="sleep" className="col-3" tabs={["today", "analysis"]} currentTab={tab}>
-          <SleepCard sleep={data.sleep} readiness={data.readiness} />
         </Card>
 
         {tab === "today" && (
@@ -213,23 +216,28 @@ export default function App() {
           </Card>
         )}
 
-        <Card storageKey="sleep-detail" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+        <Card storageKey="sleep-detail" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <SleepDetailCard data={data.sleep_detail} />
         </Card>
-        <Card storageKey="wellness" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+        <Card storageKey="wellness" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <WellnessCard data={data.wellness} />
         </Card>
-        <Card storageKey="yoy" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
-          <YearOverYearCard data={data.year_over_year} />
-        </Card>
-        <Card storageKey="pmc" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+        <Card storageKey="pmc" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <PerformanceMgmtCard data={data.performance_mgmt} />
         </Card>
-        <Card storageKey="vdot" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+        {isYearOverYearAvailable(data.year_over_year) && (
+          <Card storageKey="yoy" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+            <YearOverYearCard data={data.year_over_year} />
+          </Card>
+        )}
+        <Card storageKey="vdot" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <VdotCard data={data.vdot} />
         </Card>
-        <Card storageKey="temp-trend" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+        <Card storageKey="temp-trend" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <TemperatureTrendCard data={data.temperature_trend} />
+        </Card>
+        <Card storageKey="swim-technique" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+          <SwimTechniqueCard data={data.swim_technique} />
         </Card>
         {(() => {
           let cycleVisible = false;

@@ -25,6 +25,7 @@ from ..analysis import (
     recovery,
     sleep_detail,
     strength,
+    swim_technique,
     temperature_trend,
     wellness,
     training_plan,
@@ -148,6 +149,7 @@ def dashboard() -> dict:
         "cycle_performance": cycle_performance.cycle_performance(180),
         "vdot": vdot.vdot_dashboard(),
         "temperature_trend": temperature_trend.temperature_trend(90),
+        "swim_technique": swim_technique.swim_technique_progress(12),
         "ai_available": bool(__import__("os").getenv("ANTHROPIC_API_KEY", "").strip()),
     }
 
@@ -253,6 +255,11 @@ def get_coach_schedule() -> dict:
 @app.get("/api/coach-today")
 def get_coach_today() -> dict:
     return coach.coach_today()
+
+
+@app.get("/api/swim-technique")
+def get_swim_technique(limit: int = 12) -> dict:
+    return swim_technique.swim_technique_progress(limit=limit)
 
 
 @app.get("/api/strength")

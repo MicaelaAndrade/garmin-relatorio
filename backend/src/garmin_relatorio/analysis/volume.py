@@ -62,13 +62,21 @@ def weekly_summary(days: int = 90) -> list[dict]:
 
 
 def latest_week_totals() -> dict:
-    """Totais da semana corrente (segunda → hoje)."""
-    df = load_activities_df(14)
-    if df.empty:
-        return {"sessions": 0, "duration_min": 0, "distance_km": 0, "by_sport": {}}
-
+    """Totais da semana corrente (segunda → domingo)."""
     today = date.today()
     week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+    df = load_activities_df(14)
+    if df.empty:
+        return {
+            "week_start": week_start.isoformat(),
+            "week_end": week_end.isoformat(),
+            "sessions": 0,
+            "duration_min": 0,
+            "distance_km": 0,
+            "by_sport": {},
+        }
+
     df_week = df[df["started_at"].dt.date >= week_start]
 
     by_sport = {}
@@ -81,6 +89,7 @@ def latest_week_totals() -> dict:
 
     return {
         "week_start": week_start.isoformat(),
+        "week_end": week_end.isoformat(),
         "sessions": int(len(df_week)),
         "duration_min": round(float(df_week["duration_min"].sum()), 1),
         "distance_km": round(float(df_week["distance_km"].sum()), 2),

@@ -86,6 +86,165 @@ def _zone_bucket(zone: str | None) -> str:
     return "high"  # Z4, Z5, Race
 
 
+# Bandas de SWOLF pra piscina 25m (mulher iniciante/intermediaria). SWOLF abaixo
+# de 36 ja' eh territorio de nadadora avancada. Acima de 50, ha bastante coisa pra
+# trabalhar (deslize curto + ou tempo por length alto).
+SWOLF_BANDS = [
+    (36, "ótimo", "good"),
+    (42, "bom", "good"),
+    (50, "banda iniciante", "warn"),
+    (999, "muito alto", "bad"),
+]
+
+
+def _swolf_band(swolf: float) -> tuple[str, str]:
+    for threshold, label, rating in SWOLF_BANDS:
+        if swolf < threshold:
+            return label, rating
+    return "muito alto", "bad"
+
+
+def _build_swim_tech_analysis(exec_data: dict, prescribed_dist_m: float | None) -> dict | None:
+    """Análise técnica de natação (DPS, SWOLF, cadência, pace puro, parada).
+
+    Devolve {metrics: [...], tips: [...], checklist: [...]}. None se faltam dados.
+    """
+    raw = exec_data.get("raw") or {}
+    actual_dur = exec_data["duration_s"] or 0
+    actual_dist = exec_data["distance_m"] or 0
+    if actual_dist <= 0:
+        return None
+
+    metrics: list[dict] = []
+    tips: list[str] = []
+
+    # Pool length em metros (raw vem em cm pelo GDPR, em m pela live API).
+    pool_raw = raw.get("poolLength") or 0
+    pool_m = pool_raw / 100 if pool_raw >= 50 else pool_raw
+
+    # DPS — distance per stroke, em m/braçada. Precisa de avgStrokes por length.
+    avg_strokes_per_length = raw.get("avgStrokes")
+    dps: float | None = None
+    if avg_strokes_per_length and pool_m:
+        dps = pool_m / float(avg_strokes_per_length)
+        if dps >= 2.0:
+            rating, hint = "good", "deslize longo"
+        elif dps >= 1.7:
+            rating, hint = "good", "bom deslize"
+        elif dps >= 1.4:
+            rating, hint = "warn", "alongue a braçada (alcance + rotação)"
+        else:
+            rating, hint = "bad", "DPS baixo — foque em puxada longa"
+        metrics.append({
+            "name": "DPS",
+            "value": f"{dps:.2f} m/braçada",
+            "rating": rating,
+            "hint": hint,
+        })
+
+    # SWOLF
+    swolf = raw.get("averageSwolf")
+    if swolf:
+        label, rating = _swolf_band(float(swolf))
+        target_hint = "alvo 38" if float(swolf) >= 42 else None
+        hint = label if not target_hint else f"{label} ({target_hint})"
+        metrics.append({
+            "name": "SWOLF",
+            "value": str(int(swolf)),
+            "rating": rating,
+            "hint": hint,
+        })
+
+    # Cadência (stroke rate)
+    cad = raw.get("averageSwimCadenceInStrokesPerMinute")
+    if cad:
+        if cad >= 32:
+            rating, hint = "good", "boa pra séries hard"
+        elif cad >= 28:
+            rating, hint = "good", "ok pra base"
+        elif cad >= 24:
+            rating, hint = "warn", "subir pra 30+ em séries fortes"
+        else:
+            rating, hint = "warn", "muito lenta — perde ritmo"
+        metrics.append({
+            "name": "Cadência",
+            "value": f"{int(cad)} strokes/min",
+            "rating": rating,
+            "hint": hint,
+        })
+
+    # Pace puro (sem descansos) usando movingDuration
+    moving_dur = raw.get("movingDuration")
+    if moving_dur and actual_dist:
+        pace_pure_s_km = moving_dur / (actual_dist / 1000)
+        metrics.append({
+            "name": "Pace puro",
+            "value": _format_pace_per_100m(pace_pure_s_km),
+            "rating": "neutral",
+            "hint": "descontando descansos",
+        })
+
+    # Parada total (duration - movingDuration)
+    if moving_dur and actual_dur:
+        stopped_s = max(0, int(actual_dur - moving_dur))
+        if stopped_s > 60:
+            stopped_min = stopped_s / 60
+            # Avalia se a parada eh esperada (serie) ou excessiva
+            stopped_pct = stopped_s / actual_dur
+            if stopped_pct > 0.4:
+                rating, hint = "warn", "muita parada — série ou cansaço?"
+            elif stopped_pct > 0.15:
+                rating, hint = "neutral", "normal pra série"
+            else:
+                rating, hint = "good", "fluido"
+            metrics.append({
+                "name": "Parada total",
+                "value": f"{stopped_min:.0f}min",
+                "rating": rating,
+                "hint": hint,
+            })
+
+    # Tips heurísticas (max 3)
+    if swolf and float(swolf) >= 42:
+        tips.append(f"Reduzir SWOLF (alvo 38): menos braçadas por length OU mais rápido por length")
+    if cad and float(cad) < 28:
+        tips.append(f"Cadência {int(cad)} strokes/min é baixa — bom pra base, sobe pra 30+ em séries fortes")
+    if dps and dps < 1.7:
+        tips.append("DPS abaixo de 1.7m — trabalhar alcance e rotação de quadril pra puxada mais longa")
+    if prescribed_dist_m and actual_dist < prescribed_dist_m * 0.7:
+        tips.append(f"Faltou {(prescribed_dist_m - actual_dist):.0f}m do prescrito — repor na próxima ou conversar com o coach")
+    # Sempre incluir o lembrete de bilateral porque o Garmin nao detecta
+    tips.append("Respiração bilateral 3/3 — Garmin não detecta, marque mentalmente")
+
+    return {
+        "metrics": metrics,
+        "tips": tips[:4],
+        "checklist": [
+            "Respirei bilateral (3 braçadas pra cada lado)",
+            "Kick constante saindo do quadril (não só dos joelhos)",
+            "Cabeça alinhada — olhar pro fundo, não pra frente",
+            "Empurrei a água até atrás da coxa (puxada completa)",
+        ],
+    }
+
+
+def _format_pace_per_km(s_per_km: float) -> str:
+    m, s = divmod(int(round(s_per_km)), 60)
+    return f"{m}:{s:02d}/km"
+
+
+def _format_pace_per_100m(s_per_km: float) -> str:
+    s_per_100 = s_per_km / 10.0
+    m, s = divmod(int(round(s_per_100)), 60)
+    return f"{m}:{s:02d}/100m"
+
+
+def _format_distance(sport: str, distance_m: float) -> str:
+    if sport == "swim":
+        return f"{int(round(distance_m))}m"
+    return f"{distance_m/1000:.2f}km"
+
+
 def _build_fueling(
     sport: str,
     duration_s: int | None,
@@ -101,15 +260,23 @@ def _build_fueling(
 
     duration_h = duration_s / 3600
 
-    # Pace medio se temos distancia
-    pace_alvo_s_km = None
+    # Pace medio se temos distancia (run em /km, swim em /100m)
+    pace_alvo_s_km: int | None = None
+    pace_alvo_label: str | None = None
     if distance_m and distance_m > 0 and sport in ("run", "swim"):
         pace_alvo_s_km = int(duration_s / (distance_m / 1000))
+        pace_alvo_label = (
+            _format_pace_per_100m(pace_alvo_s_km)
+            if sport == "swim"
+            else _format_pace_per_km(pace_alvo_s_km)
+        )
 
     # Velocidade media bike
-    speed_alvo_kmh = None
+    speed_alvo_kmh: float | None = None
+    speed_alvo_label: str | None = None
     if distance_m and distance_m > 0 and sport == "bike":
         speed_alvo_kmh = round(distance_m / 1000 / duration_h, 1)
+        speed_alvo_label = f"{speed_alvo_kmh} km/h"
 
     # Hidratacao
     fluid_ml_per_h = 600
@@ -133,7 +300,9 @@ def _build_fueling(
     return {
         "duration_label": f"{int(duration_s // 60)}min",
         "pace_alvo_s_km": pace_alvo_s_km,
+        "pace_alvo_label": pace_alvo_label,
         "speed_alvo_kmh": speed_alvo_kmh,
+        "speed_alvo_label": speed_alvo_label,
         "fluid_ml_per_h": fluid_ml_per_h,
         "fluid_total_ml": fluid_total_ml,
         "carbs_g_per_h": carbs_g_per_h,
@@ -148,10 +317,13 @@ def _build_execution(
     prescribed_dur_s: int | None,
     prescribed_dist_m: float | None,
     prescribed_blocks: list[dict],
+    sport: str = "run",
 ) -> dict | None:
     """Compara prescrito × executado. Retorna None se nao houve execucao.
 
     Score baseado em (1) duracao cumprida (% do prescrito), (2) distancia (se aplicavel).
+    Para swim/bike, a distancia tende a ser mais confiavel que duracao (recovery entre
+    series infla o tempo total) — entao quando ha prescricao de distancia, usa ela.
     """
     if not executions:
         return None
@@ -160,7 +332,9 @@ def _build_execution(
     actual_dur = exec_data["duration_s"] or 0
     actual_dist = exec_data["distance_m"] or 0
     actual_pace = exec_data["avg_pace_s_km"]
+    actual_speed = exec_data.get("avg_speed_kmh")
     actual_hr = exec_data["avg_hr"]
+    raw = exec_data.get("raw") or {}
 
     duration_pct = None
     if prescribed_dur_s and prescribed_dur_s > 0:
@@ -170,10 +344,13 @@ def _build_execution(
     if prescribed_dist_m and prescribed_dist_m > 0:
         distance_pct = round(actual_dist / prescribed_dist_m * 100)
 
-    # Score geral: completou se >=80% da duracao prescrita
-    completion_pct = duration_pct if duration_pct is not None else (
-        distance_pct if distance_pct is not None else None
-    )
+    # Pra swim/bike, distancia eh referencia primaria quando disponivel
+    if sport in ("swim", "bike") and distance_pct is not None:
+        completion_pct = distance_pct
+    elif duration_pct is not None:
+        completion_pct = duration_pct
+    else:
+        completion_pct = distance_pct
     if completion_pct is None:
         status = "executado"
         status_label = "Executado"
@@ -200,17 +377,70 @@ def _build_execution(
             )
         else:
             notes.append(f"Duração: {round(actual_dur/60)}min (igual ao prescrito)")
+    elif actual_dur:
+        notes.append(f"Duração: {round(actual_dur/60)}min")
+
     if actual_dist and prescribed_dist_m:
-        notes.append(f"Distância: {actual_dist/1000:.2f}km (prescrito ~{prescribed_dist_m/1000:.2f}km, {distance_pct}%)")
+        notes.append(
+            f"Distância: {_format_distance(sport, actual_dist)} "
+            f"(prescrito ~{_format_distance(sport, prescribed_dist_m)}, {distance_pct}%)"
+        )
     elif actual_dist:
-        notes.append(f"Distância: {actual_dist/1000:.2f}km")
-    if actual_pace:
-        m, s = divmod(int(actual_pace), 60)
-        notes.append(f"Pace médio: {m}:{s:02d}/km")
+        notes.append(f"Distância: {_format_distance(sport, actual_dist)}")
+
+    # Metrica primaria de ritmo: pace pra run/swim, velocidade pra bike
+    if sport == "bike":
+        # Prefere avg_speed_kmh; senao computa a partir de dist/dur
+        speed_kmh = actual_speed
+        if not speed_kmh and actual_dur and actual_dist:
+            speed_kmh = round((actual_dist / 1000) / (actual_dur / 3600), 1)
+        if speed_kmh:
+            notes.append(f"Velocidade média: {speed_kmh} km/h")
+    elif sport == "swim" and actual_pace:
+        notes.append(f"Pace médio: {_format_pace_per_100m(float(actual_pace))}")
+    elif actual_pace:
+        notes.append(f"Pace médio: {_format_pace_per_km(float(actual_pace))}")
+
     if actual_hr:
         notes.append(f"FC média: {int(actual_hr)} bpm")
+
+    # Extras sport-aware extraidos do raw da activity
+    if sport == "swim":
+        swolf = raw.get("averageSwolf")
+        if swolf:
+            notes.append(f"SWOLF médio: {int(swolf)}")
+        strokes = raw.get("strokes") or raw.get("totalStrokes")
+        if strokes:
+            notes.append(f"Braçadas: {int(strokes)}")
+        cad = raw.get("averageSwimCadenceInStrokesPerMinute")
+        if cad:
+            notes.append(f"Cadência: {int(cad)} braçadas/min")
+        pool = raw.get("poolLength")
+        if pool:
+            # poolLength em cm pelos exports GDPR; live API ja vem em m
+            pool_m = pool / 100 if pool >= 50 else pool
+            notes.append(f"Piscina: {int(pool_m)}m")
+    elif sport == "bike":
+        cad = (
+            raw.get("averageBikingCadenceInRevPerMinute")
+            or raw.get("averageBikeCadence")
+        )
+        if cad:
+            notes.append(f"Cadência: {int(cad)} rpm")
+        if raw.get("avgPower") or raw.get("averagePower"):
+            notes.append(f"Potência média: {int(raw.get('avgPower') or raw.get('averagePower'))} W")
+    else:  # run
+        cad = (
+            raw.get("averageRunningCadenceInStepsPerMinute")
+            or raw.get("averageRunCadence")
+        )
+        if cad:
+            notes.append(f"Cadência: {int(cad)} passos/min")
+
     if exec_data.get("calories"):
         notes.append(f"Gasto: {int(exec_data['calories'])} kcal")
+
+    swim_tech = _build_swim_tech_analysis(exec_data, prescribed_dist_m) if sport == "swim" else None
 
     return {
         "completed": True,
@@ -223,10 +453,12 @@ def _build_execution(
         "actual_duration_s": actual_dur,
         "actual_distance_m": actual_dist,
         "actual_pace_s_km": int(actual_pace) if actual_pace else None,
+        "actual_speed_kmh": float(actual_speed) if actual_speed else None,
         "actual_avg_hr": int(actual_hr) if actual_hr else None,
         "actual_calories": int(exec_data["calories"]) if exec_data.get("calories") else None,
         "started_at": exec_data["started_at"],
         "notes": notes,
+        "swim_tech": swim_tech,
     }
 
 
@@ -381,6 +613,99 @@ def _classify_kind(title: str) -> tuple[str, str | None]:
     return "workout", None
 
 
+def _build_execution_indices(
+    conn,
+    start_iso: str,
+    end_iso: str | None = None,
+) -> tuple[dict[int, list[dict[str, Any]]], dict[tuple[str, str], list[dict[str, Any]]]]:
+    """Carrega atividades do periodo e separa em dois indices:
+
+    - executed_map[workout_id] : matching exato pelo workoutId no raw
+    - unclaimed_by_day_sport[(YYYY-MM-DD, sport)] : fallback pra atividades
+      sem workoutId (caso comum em natacao/bike). Cada (dia, sport) eh uma lista
+      ordenada por started_at; itens sao "drenados" via _claim_fallback.
+    """
+    executed_map: dict[int, list[dict[str, Any]]] = {}
+    unclaimed: dict[tuple[str, str], list[dict[str, Any]]] = {}
+
+    if end_iso is None:
+        query = (
+            "SELECT id, source, external_id, sport, started_at, duration_s, distance_m, "
+            "avg_hr, max_hr, avg_pace_s_km, avg_speed_kmh, calories, raw "
+            "FROM activities WHERE started_at >= ? ORDER BY started_at"
+        )
+        params: tuple[str, ...] = (start_iso,)
+    else:
+        query = (
+            "SELECT id, source, external_id, sport, started_at, duration_s, distance_m, "
+            "avg_hr, max_hr, avg_pace_s_km, avg_speed_kmh, calories, raw "
+            "FROM activities WHERE started_at >= ? AND started_at < ? ORDER BY started_at"
+        )
+        params = (start_iso, end_iso)
+
+    for ar in conn.execute(query, params).fetchall():
+        try:
+            raw = json.loads(ar["raw"] or "{}")
+        except (json.JSONDecodeError, ValueError, TypeError):
+            raw = {}
+        entry = {
+            "activity_id": ar["id"],
+            "external_id": ar["external_id"],
+            "source": ar["source"],
+            "sport": ar["sport"],
+            "started_at": ar["started_at"],
+            "duration_s": ar["duration_s"],
+            "distance_m": ar["distance_m"],
+            "avg_hr": ar["avg_hr"],
+            "max_hr": ar["max_hr"],
+            "avg_pace_s_km": ar["avg_pace_s_km"],
+            "avg_speed_kmh": ar["avg_speed_kmh"],
+            "calories": ar["calories"],
+            "raw": raw,
+        }
+        wid = raw.get("workoutId")
+        if wid:
+            executed_map.setdefault(int(wid), []).append(entry)
+            continue
+        day = (ar["started_at"] or "")[:10]
+        if not day or not ar["sport"]:
+            continue
+        unclaimed.setdefault((day, ar["sport"]), []).append(entry)
+    return executed_map, unclaimed
+
+
+def _claim_fallback(
+    unclaimed: dict[tuple[str, str], list[dict[str, Any]]],
+    scheduled_date: str,
+    sport: str,
+    prescribed_dur_s: int | None,
+    prescribed_dist_m: float | None,
+) -> list[dict[str, Any]] | None:
+    """Drena a atividade que melhor encaixa no treino prescrito.
+
+    Melhor encaixe = menor diferenca de distancia (se ha prescricao), depois
+    duracao. Se nao ha referencia, pega o primeiro disponivel. A atividade eh
+    removida do indice pra evitar dupla atribuicao quando ha 2 treinos do mesmo
+    esporte no mesmo dia.
+    """
+    key = (scheduled_date, sport)
+    bucket = unclaimed.get(key)
+    if not bucket:
+        return None
+
+    def score(entry: dict[str, Any]) -> tuple[int, float]:
+        # Distancia tem peso maior pra swim/bike; tempo pra run/strength/etc.
+        if prescribed_dist_m and prescribed_dist_m > 0 and entry["distance_m"]:
+            return (0, abs(entry["distance_m"] - prescribed_dist_m))
+        if prescribed_dur_s and prescribed_dur_s > 0 and entry["duration_s"]:
+            return (1, abs(entry["duration_s"] - prescribed_dur_s))
+        return (2, 0.0)
+
+    bucket.sort(key=score)
+    chosen = bucket.pop(0)
+    return [chosen]
+
+
 def coach_schedule(start: date | None = None) -> dict[str, Any]:
     """Schedule prescrito pelo coach.
 
@@ -422,38 +747,9 @@ def coach_schedule(start: date | None = None) -> dict[str, Any]:
             (start.isoformat(), end.isoformat()),
         ).fetchall()
 
-        # Mapa de workouts executados (workoutId no raw da activity)
-        executed_map: dict[int, list[dict[str, Any]]] = {}
-        act_rows = conn.execute(
-            """
-            SELECT id, source, external_id, sport, started_at, duration_s, distance_m,
-                   avg_hr, max_hr, avg_pace_s_km, calories, raw
-            FROM activities
-            WHERE started_at >= ?
-            """,
-            (start.isoformat(),),
-        ).fetchall()
-        for ar in act_rows:
-            try:
-                raw = json.loads(ar["raw"] or "{}")
-                wid = raw.get("workoutId")
-                if wid:
-                    executed_map.setdefault(int(wid), []).append({
-                        "activity_id": ar["id"],
-                        "external_id": ar["external_id"],
-                        "source": ar["source"],
-                        "sport": ar["sport"],
-                        "started_at": ar["started_at"],
-                        "duration_s": ar["duration_s"],
-                        "distance_m": ar["distance_m"],
-                        "avg_hr": ar["avg_hr"],
-                        "max_hr": ar["max_hr"],
-                        "avg_pace_s_km": ar["avg_pace_s_km"],
-                        "calories": ar["calories"],
-                        "raw": raw,
-                    })
-            except (json.JSONDecodeError, ValueError, TypeError):
-                continue
+        executed_map, unclaimed_by_day_sport = _build_execution_indices(
+            conn, start.isoformat(), end_iso=(end + timedelta(days=1)).isoformat()
+        )
 
     by_day: dict[int, list[dict[str, Any]]] = {i: [] for i in range(7)}
     for r in rows:
@@ -477,7 +773,13 @@ def coach_schedule(start: date | None = None) -> dict[str, Any]:
                 blocks = []
         wid = r["workout_id"]
         prescribed_dist_m = r["estimated_distance_m"] or r["distance_m"]
-        executed = _build_execution(executed_map.get(int(wid)) if wid else None, dur_s, prescribed_dist_m, blocks)
+        execs = executed_map.get(int(wid)) if wid else None
+        if not execs:
+            execs = _claim_fallback(
+                unclaimed_by_day_sport, r["scheduled_date"], sport,
+                dur_s, prescribed_dist_m,
+            )
+        executed = _build_execution(execs, dur_s, prescribed_dist_m, blocks, sport)
         fueling = _build_fueling(sport, dur_s, prescribed_dist_m, blocks)
         by_day[idx].append({
             "sport": sport,
@@ -673,31 +975,9 @@ def coach_today() -> dict[str, Any]:
             (today.isoformat(),),
         ).fetchall()
 
-        # Mapa de execucoes pra hoje
-        executed_map: dict[int, list[dict[str, Any]]] = {}
-        act_rows = conn.execute(
-            """
-            SELECT id, source, external_id, sport, started_at, duration_s, distance_m,
-                   avg_hr, max_hr, avg_pace_s_km, calories, raw
-            FROM activities
-            WHERE started_at LIKE ?
-            """,
-            (f"{today.isoformat()}%",),
-        ).fetchall()
-        for ar in act_rows:
-            try:
-                raw = json.loads(ar["raw"] or "{}")
-                wid = raw.get("workoutId")
-                if wid:
-                    executed_map.setdefault(int(wid), []).append({
-                        "activity_id": ar["id"], "external_id": ar["external_id"], "source": ar["source"],
-                        "sport": ar["sport"], "started_at": ar["started_at"],
-                        "duration_s": ar["duration_s"], "distance_m": ar["distance_m"],
-                        "avg_hr": ar["avg_hr"], "max_hr": ar["max_hr"],
-                        "avg_pace_s_km": ar["avg_pace_s_km"], "calories": ar["calories"], "raw": raw,
-                    })
-            except (json.JSONDecodeError, ValueError, TypeError):
-                continue
+        executed_map, unclaimed_by_day_sport = _build_execution_indices(
+            conn, today.isoformat(), (today + timedelta(days=1)).isoformat()
+        )
     items = []
     for r in rows:
         sport = SPORT_MAP.get((r["sport_type"] or "").lower(), "other")
@@ -715,10 +995,13 @@ def coach_today() -> dict[str, Any]:
                 blocks = []
         wid = r["workout_id"]
         prescribed_dist_m = r["estimated_distance_m"] or r["distance_m"]
-        executed = _build_execution(
-            executed_map.get(int(wid)) if wid else None,
-            dur_s, prescribed_dist_m, blocks,
-        )
+        execs = executed_map.get(int(wid)) if wid else None
+        if not execs:
+            execs = _claim_fallback(
+                unclaimed_by_day_sport, today.isoformat(), sport,
+                dur_s, prescribed_dist_m,
+            )
+        executed = _build_execution(execs, dur_s, prescribed_dist_m, blocks, sport)
         fueling = _build_fueling(sport, dur_s, prescribed_dist_m, blocks)
         items.append({
             "sport": sport,

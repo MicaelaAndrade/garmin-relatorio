@@ -20,6 +20,18 @@ function deltaText(now: number, then: number, unit = ""): { label: string; color
   return { label: `${sign}${diff.toFixed(unit === "%" ? 1 : 1)}${unit} (${sign}${pct.toFixed(0)}%)`, color };
 }
 
+export const YOY_MIN_SESSIONS = 3;
+
+export function isYearOverYearAvailable(data: YearOverYear): boolean {
+  return Boolean(
+    data.available
+    && data.this_period
+    && data.last_period
+    && data.deltas
+    && data.last_period.sessions >= YOY_MIN_SESSIONS,
+  );
+}
+
 export function YearOverYearCard({ data }: { data: YearOverYear }) {
   if (!data.available || !data.this_period || !data.last_period || !data.deltas) {
     return (

@@ -15,7 +15,7 @@ const LABELS: Record<string, string> = {
   run: "Corrida",
   bike: "Bike",
   swim: "Nado",
-  strength: "Força",
+  strength: "Fortalecimento",
   yoga: "Yoga",
   walking: "Caminhada",
   other: "Outro",

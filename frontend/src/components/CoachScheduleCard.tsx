@@ -1,5 +1,70 @@
 import { useState } from "react";
-import type { CoachSchedule, CoachToday, CoachWorkout, WorkoutBlock } from "../api/client";
+import type {
+  CoachSchedule,
+  CoachToday,
+  CoachWorkout,
+  SwimMetricRating,
+  SwimTechAnalysis,
+  WorkoutBlock,
+} from "../api/client";
+
+const SWIM_RATING_COLOR: Record<SwimMetricRating, string> = {
+  good: "var(--good, #4ade80)",
+  warn: "var(--warn, #fbbf24)",
+  bad: "var(--danger, #ef4444)",
+  neutral: "var(--muted)",
+};
+const SWIM_RATING_ICON: Record<SwimMetricRating, string> = {
+  good: "✅",
+  warn: "⚠️",
+  bad: "❌",
+  neutral: "·",
+};
+
+function SwimTechBlock({ tech }: { tech: SwimTechAnalysis }) {
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  return (
+    <div className="swim-tech">
+      <div className="swim-tech-head">📊 Análise técnica</div>
+      <div className="swim-tech-metrics">
+        {tech.metrics.map((m, i) => (
+          <div key={i} className="swim-tech-metric">
+            <span className="swim-tech-icon">{SWIM_RATING_ICON[m.rating]}</span>
+            <span className="swim-tech-name">{m.name}</span>
+            <span className="swim-tech-value" style={{ color: SWIM_RATING_COLOR[m.rating] }}>
+              {m.value}
+            </span>
+            <span className="swim-tech-hint muted">— {m.hint}</span>
+          </div>
+        ))}
+      </div>
+      {tech.tips.length > 0 && (
+        <div className="swim-tech-tips">
+          <div className="swim-tech-subhead">Pontos pra trabalhar</div>
+          <ul>
+            {tech.tips.map((t, i) => (
+              <li key={i}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <button
+        type="button"
+        className="swim-tech-checklist-toggle"
+        onClick={() => setChecklistOpen((v) => !v)}
+      >
+        {checklistOpen ? "▲" : "▼"} Checklist de técnica
+      </button>
+      {checklistOpen && (
+        <ul className="swim-tech-checklist">
+          {tech.checklist.map((c, i) => (
+            <li key={i}>{c}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 const KIND_COLOR: Record<string, string> = {
   long: "#4ade80",
@@ -55,12 +120,6 @@ const STATUS_COLOR: Record<string, string> = {
   iniciado: "#fb923c",
   executado: "#60a5fa",
 };
-
-function fmtPace(s: number): string {
-  const m = Math.floor(s / 60);
-  const sec = Math.round(s % 60);
-  return `${m}:${String(sec).padStart(2, "0")}/km`;
-}
 
 function WorkoutPill({ w }: { w: CoachWorkout }) {
   const hasStructure = w.has_structure && w.blocks.length > 0;
@@ -120,6 +179,7 @@ function WorkoutPill({ w }: { w: CoachWorkout }) {
                   Abrir no Garmin Connect ↗
                 </a>
               )}
+              {e.swim_tech && <SwimTechBlock tech={e.swim_tech} />}
             </div>
           )}
           {f && (
@@ -143,17 +203,17 @@ function WorkoutPill({ w }: { w: CoachWorkout }) {
                   <span className="cal-stat-value">{f.sodium_mg_per_h}</span>
                   <span className="cal-stat-unit">mg/h</span>
                 </div>
-                {f.pace_alvo_s_km && (
+                {f.pace_alvo_label && (
                   <div className="coach-fueling-stat">
                     <span className="cal-stat-label">Pace alvo</span>
-                    <span className="cal-stat-value" style={{ color: "var(--accent)" }}>{fmtPace(f.pace_alvo_s_km)}</span>
+                    <span className="cal-stat-value" style={{ color: "var(--accent)" }}>{f.pace_alvo_label}</span>
                     <span className="cal-stat-unit">média</span>
                   </div>
                 )}
-                {f.speed_alvo_kmh && (
+                {f.speed_alvo_label && (
                   <div className="coach-fueling-stat">
                     <span className="cal-stat-label">Vel. alvo</span>
-                    <span className="cal-stat-value" style={{ color: "var(--accent)" }}>{f.speed_alvo_kmh} km/h</span>
+                    <span className="cal-stat-value" style={{ color: "var(--accent)" }}>{f.speed_alvo_label}</span>
                     <span className="cal-stat-unit">média</span>
                   </div>
                 )}

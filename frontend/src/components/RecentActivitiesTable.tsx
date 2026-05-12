@@ -16,7 +16,7 @@ const SPORT_LABEL: Record<Sport, string> = {
   bike: "Bike",
   swim: "Nado",
   yoga: "Yoga",
-  strength: "Força",
+  strength: "Fortalecimento",
   walking: "Caminhada",
   other: "Outro",
 };

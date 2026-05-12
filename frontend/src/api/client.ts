@@ -3,6 +3,7 @@ export type Zone = "destreino" | "otimo" | "moderado" | "alto" | "indefinido" | 
 
 export interface CurrentWeek {
   week_start: string;
+  week_end: string;
   sessions: number;
   duration_min: number;
   distance_km: number;
@@ -189,7 +190,44 @@ export interface Dashboard {
   cycle_performance: CyclePerformanceDashboard;
   vdot: VdotDashboard;
   temperature_trend: TemperatureTrend;
+  swim_technique: SwimTechniqueProgress;
   ai_available: boolean;
+}
+
+export interface SwimTechniqueSession {
+  activity_id: number;
+  date: string;
+  duration_min: number;
+  distance_m: number;
+  avg_hr: number | null;
+  dps: number | null;
+  swolf: number | null;
+  cadence: number | null;
+  pace_pure_s_100m: number | null;
+  pace_pure_label: string | null;
+}
+
+export interface SwimTechniqueTrend {
+  current: number | null;
+  delta: number | null;
+  improvement: "up" | "flat" | "down" | null;
+  samples_current: number;
+  samples_previous: number;
+}
+
+export interface SwimTechniqueProgress {
+  available: boolean;
+  count?: number;
+  sessions: SwimTechniqueSession[];
+  latest?: SwimTechniqueSession;
+  trends?: {
+    dps?: SwimTechniqueTrend;
+    swolf?: SwimTechniqueTrend;
+    cadence?: SwimTechniqueTrend;
+    pace_pure_s_100m?: SwimTechniqueTrend;
+  };
+  targets: { swolf: number; dps: number; cadence: number; pace_s_100m: number };
+  insights?: string[];
 }
 
 export async function fetchStrengthRoutine(routineId: number): Promise<StrengthRoutine> {
@@ -408,6 +446,21 @@ export type WorkoutBlock =
       children: WorkoutBlock[];
     };
 
+export type SwimMetricRating = "good" | "warn" | "bad" | "neutral";
+
+export interface SwimTechMetric {
+  name: string;
+  value: string;
+  rating: SwimMetricRating;
+  hint: string;
+}
+
+export interface SwimTechAnalysis {
+  metrics: SwimTechMetric[];
+  tips: string[];
+  checklist: string[];
+}
+
 export interface CoachExecution {
   completed: boolean;
   status: "completo" | "quase" | "parcial" | "iniciado" | "executado";
@@ -419,16 +472,20 @@ export interface CoachExecution {
   actual_duration_s: number;
   actual_distance_m: number;
   actual_pace_s_km: number | null;
+  actual_speed_kmh: number | null;
   actual_avg_hr: number | null;
   actual_calories: number | null;
   started_at: string;
   notes: string[];
+  swim_tech: SwimTechAnalysis | null;
 }
 
 export interface CoachFueling {
   duration_label: string;
   pace_alvo_s_km: number | null;
+  pace_alvo_label: string | null;
   speed_alvo_kmh: number | null;
+  speed_alvo_label: string | null;
   fluid_ml_per_h: number;
   fluid_total_ml: number;
   carbs_g_per_h: number;

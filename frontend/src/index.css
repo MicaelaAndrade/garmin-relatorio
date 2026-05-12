@@ -37,7 +37,7 @@ body {
 h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .container {
-  max-width: 1280px;
+  max-width: min(1800px, 95vw);
   margin: 0 auto;
   padding: 24px;
 }
@@ -84,6 +84,21 @@ header.top .sub { color: var(--muted); font-size: 13px; }
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(12, 1fr);
+  align-items: start;
+}
+
+.stacked-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mini-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .mini-grid-2x2 { grid-template-columns: 1fr; }
 }
 
 .card {
@@ -1082,8 +1097,139 @@ header.top .sub { color: var(--muted); font-size: 13px; }
 }
 .coach-fueling-stat .cal-stat-value { font-size: 15px; }
 .coach-fueling-stat .cal-stat-unit { font-size: 9px; }
+
+.swim-tech {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(96, 165, 250, 0.08);
+  border-left: 2px solid var(--info, #60a5fa);
+  border-radius: 4px;
+}
+.swim-tech-head {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.swim-tech-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+.swim-tech-metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  flex-wrap: wrap;
+}
+.swim-tech-icon { width: 14px; text-align: center; }
+.swim-tech-name { min-width: 78px; color: var(--muted); }
+.swim-tech-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+.swim-tech-hint { font-size: 10px; }
+.swim-tech-tips {
+  margin-top: 6px;
+  font-size: 11px;
+}
+.swim-tech-subhead {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.swim-tech-tips ul {
+  margin: 0;
+  padding-left: 16px;
+  line-height: 1.45;
+}
+.swim-tech-tips li { margin-bottom: 2px; }
+.swim-tech-checklist-toggle {
+  margin-top: 8px;
+  background: transparent;
+  border: 0;
+  color: var(--accent, #60a5fa);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+.swim-tech-checklist {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.swim-metric-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.swim-metric-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: border-color 120ms, background 120ms;
+}
+.swim-metric-tab:hover { background: rgba(255, 255, 255, 0.06); }
+.swim-metric-tab.active {
+  border-color: var(--accent, #60a5fa);
+  background: rgba(96, 165, 250, 0.12);
+}
+.swim-metric-tab-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.swim-metric-tab-value { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.swim-metric-tab-delta { font-size: 10px; font-variant-numeric: tabular-nums; }
+
+.swim-latest-summary { margin-top: 14px; }
+.swim-latest-head {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.swim-latest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+.swim-latest-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+.swim-latest-stat .cal-stat-value { font-size: 16px; }
+.swim-latest-stat .cal-stat-unit { font-size: 9px; }
+
+.swim-insights {
+  margin-top: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.swim-insights ul { margin: 0; padding-left: 16px; }
+.swim-insights li { margin-bottom: 3px; }
+
 @media (max-width: 768px) {
   .coach-grid { grid-template-columns: repeat(7, minmax(90px, 1fr)); overflow-x: auto; padding-bottom: 4px; }
+  .swim-metric-tabs { grid-template-columns: repeat(2, 1fr); }
 }
 
 .plan-schedule { margin-bottom: 14px; }
