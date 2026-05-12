@@ -51,6 +51,35 @@ header.top {
 header.top h1 { font-size: 24px; }
 header.top .sub { color: var(--muted); font-size: 13px; }
 
+.dash-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: fit-content;
+}
+.dash-tab {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 120ms ease;
+}
+.dash-tab:hover { color: var(--text); }
+.dash-tab-active {
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
 .grid {
   display: grid;
   gap: 16px;
