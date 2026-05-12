@@ -1,0 +1,19 @@
+{
+  "name": "Garmin Relatório — Triathlon",
+  "short_name": "Garmin Rel",
+  "description": "Dashboard local de evolução em triathlon com ACWR, recovery, calorias e plano coach.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#0f1419",
+  "lang": "pt-BR",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

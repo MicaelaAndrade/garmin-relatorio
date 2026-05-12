@@ -48,30 +48,125 @@ function StepRow({ b, depth = 0 }: { b: WorkoutBlock; depth?: number }) {
   );
 }
 
+const STATUS_COLOR: Record<string, string> = {
+  completo: "#4ade80",
+  quase: "#a3e635",
+  parcial: "#fbbf24",
+  iniciado: "#fb923c",
+  executado: "#60a5fa",
+};
+
+function fmtPace(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = Math.round(s % 60);
+  return `${m}:${String(sec).padStart(2, "0")}/km`;
+}
+
 function WorkoutPill({ w }: { w: CoachWorkout }) {
-  const [expanded, setExpanded] = useState(false);
-  const color = KIND_COLOR[w.kind] || "#8b96a8";
   const hasStructure = w.has_structure && w.blocks.length > 0;
+  const hasExecution = !!w.executed;
+  const hasFueling = !!w.fueling;
+  const canExpand = hasStructure || hasExecution || hasFueling;
+  const [expanded, setExpanded] = useState(hasExecution); // se já tem execução, abre por padrão
+
+  const color = KIND_COLOR[w.kind] || "#8b96a8";
+  const e = w.executed;
+  const f = w.fueling;
+
   return (
-    <div className={`coach-pill${hasStructure ? " coach-pill-clickable" : ""}`}>
+    <div className={`coach-pill${canExpand ? " coach-pill-clickable" : ""}`}>
       <div
         className="coach-pill-head"
-        onClick={hasStructure ? () => setExpanded((v) => !v) : undefined}
-        title={hasStructure ? "Clique pra ver a estrutura do treino" : w.label}
+        onClick={canExpand ? () => setExpanded((v) => !v) : undefined}
+        title={canExpand ? "Clique pra ver detalhes" : w.label}
       >
         <span className="coach-pill-icon">{w.icon}</span>
-        <span className="coach-pill-label" style={{ color }}>{w.label}</span>
+        <span className="coach-pill-label" style={{ color }}>
+          {e && <span style={{ marginRight: 4 }}>✅</span>}
+          {w.label}
+        </span>
         <div className="coach-pill-meta">
           {w.duration_min > 0 && <span className="coach-pill-dur">{w.duration_min}min</span>}
           {w.zone && <span className="coach-pill-zone" style={{ color }}>{w.zone}</span>}
-          {hasStructure && <span className="coach-pill-toggle">{expanded ? "▲" : "▼"}</span>}
+          {e && (
+            <span
+              className="coach-pill-status"
+              style={{ color: STATUS_COLOR[e.status] || "var(--accent)" }}
+            >
+              {e.completion_pct != null ? `${e.completion_pct}%` : "feito"}
+            </span>
+          )}
+          {canExpand && <span className="coach-pill-toggle">{expanded ? "▲" : "▼"}</span>}
         </div>
       </div>
-      {expanded && hasStructure && (
+      {expanded && (
         <div className="coach-pill-blocks">
-          {w.blocks.map((b, i) => (
-            <StepRow key={i} b={b} />
-          ))}
+          {e && (
+            <div className="coach-execution">
+              <div className="coach-execution-head" style={{ color: STATUS_COLOR[e.status] }}>
+                ✅ {e.status_label}
+                {e.completion_pct != null && ` · ${e.completion_pct}% do prescrito`}
+              </div>
+              {e.notes.map((n, i) => (
+                <div key={i} className="coach-execution-note">{n}</div>
+              ))}
+              {e.source === "garmin" && e.external_id && (
+                <a
+                  href={`https://connect.garmin.com/modern/activity/${e.external_id}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="coach-execution-link"
+                >
+                  Abrir no Garmin Connect ↗
+                </a>
+              )}
+            </div>
+          )}
+          {f && (
+            <div className="coach-fueling">
+              <div className="coach-fueling-head">
+                🥤 Fueling & estratégia · duração estimada <strong>{f.duration_label}</strong>
+              </div>
+              <div className="coach-fueling-grid">
+                <div className="coach-fueling-stat">
+                  <span className="cal-stat-label">Hidratação</span>
+                  <span className="cal-stat-value" style={{ color: "var(--info)" }}>{f.fluid_total_ml}</span>
+                  <span className="cal-stat-unit">ml total · {f.fluid_ml_per_h} ml/h</span>
+                </div>
+                <div className="coach-fueling-stat">
+                  <span className="cal-stat-label">Carbo</span>
+                  <span className="cal-stat-value" style={{ color: "var(--warn)" }}>{f.carbs_total_g}</span>
+                  <span className="cal-stat-unit">g total · {f.carbs_g_per_h} g/h</span>
+                </div>
+                <div className="coach-fueling-stat">
+                  <span className="cal-stat-label">Sódio</span>
+                  <span className="cal-stat-value">{f.sodium_mg_per_h}</span>
+                  <span className="cal-stat-unit">mg/h</span>
+                </div>
+                {f.pace_alvo_s_km && (
+                  <div className="coach-fueling-stat">
+                    <span className="cal-stat-label">Pace alvo</span>
+                    <span className="cal-stat-value" style={{ color: "var(--accent)" }}>{fmtPace(f.pace_alvo_s_km)}</span>
+                    <span className="cal-stat-unit">média</span>
+                  </div>
+                )}
+                {f.speed_alvo_kmh && (
+                  <div className="coach-fueling-stat">
+                    <span className="cal-stat-label">Vel. alvo</span>
+                    <span className="cal-stat-value" style={{ color: "var(--accent)" }}>{f.speed_alvo_kmh} km/h</span>
+                    <span className="cal-stat-unit">média</span>
+                  </div>
+                )}
+              </div>
+              <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>{f.carbs_message}</div>
+            </div>
+          )}
+          {hasStructure && (
+            <>
+              <div className="label" style={{ marginTop: 8, marginBottom: 4 }}>Estrutura do treino</div>
+              {w.blocks.map((b, i) => <StepRow key={i} b={b} />)}
+            </>
+          )}
         </div>
       )}
     </div>

@@ -90,6 +90,9 @@ def sleep_detail(days: int = 30) -> dict[str, Any]:
         verdict = "ruim"
         message = "Sono muito curto. Prioridade na rotina pra evitar overtraining."
 
+    # Sleep debt cumulativo (últimas 14 noites vs alvo 7.5h)
+    debt = _sleep_debt(days=14, target_h=7.5)
+
     return {
         "available": True,
         "days": days,
@@ -103,5 +106,56 @@ def sleep_detail(days: int = 30) -> dict[str, Any]:
         "nights_short": short_count,
         "nights_low_score": low_score_count,
         "verdict": verdict,
+        "message": message,
+        "sleep_debt": debt,
+    }
+
+
+def _sleep_debt(days: int = 14, target_h: float = 7.5) -> dict[str, Any]:
+    """Calcula déficit acumulado de sono vs alvo."""
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT date, total_min FROM sleep WHERE date >= ? ORDER BY date",
+            (cutoff,),
+        ).fetchall()
+    if not rows:
+        return {"available": False, "debt_h": 0, "target_h": target_h, "days": days}
+
+    target_min = target_h * 60
+    debt_min = 0.0
+    nights = 0
+    for r in rows:
+        if r["total_min"] is None:
+            continue
+        nights += 1
+        debt_min += target_min - r["total_min"]
+
+    if nights == 0:
+        return {"available": False, "debt_h": 0, "target_h": target_h, "days": days}
+
+    debt_h = round(debt_min / 60, 1)
+    avg_per_night_min = round(debt_min / nights)
+    if debt_h <= 1:
+        status = "ok"
+        message = "Sem dívida — sono em dia."
+    elif debt_h <= 5:
+        status = "leve"
+        message = "Pequena dívida acumulada. Manejo simples nos próximos dias."
+    elif debt_h <= 12:
+        status = "moderada"
+        message = "Dívida significativa — prioritize sono pra recuperar."
+    else:
+        status = "alta"
+        message = "Dívida alta. Risco de impactar treinos e imunidade."
+
+    return {
+        "available": True,
+        "days": days,
+        "nights_counted": nights,
+        "target_h": target_h,
+        "debt_h": debt_h,
+        "avg_short_min_per_night": avg_per_night_min,
+        "status": status,
         "message": message,
     }

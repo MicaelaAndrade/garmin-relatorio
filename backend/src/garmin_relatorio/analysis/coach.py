@@ -86,6 +86,150 @@ def _zone_bucket(zone: str | None) -> str:
     return "high"  # Z4, Z5, Race
 
 
+def _build_fueling(
+    sport: str,
+    duration_s: int | None,
+    distance_m: float | None,
+    blocks: list[dict] | None,
+) -> dict | None:
+    """Hidratação + carbo + sódio sugeridos pra um treino prescrito.
+
+    Mesma lógica do race day, mas considera a duração prescrita.
+    """
+    if not duration_s or duration_s < 1200:  # < 20min nao precisa nada
+        return None
+
+    duration_h = duration_s / 3600
+
+    # Pace medio se temos distancia
+    pace_alvo_s_km = None
+    if distance_m and distance_m > 0 and sport in ("run", "swim"):
+        pace_alvo_s_km = int(duration_s / (distance_m / 1000))
+
+    # Velocidade media bike
+    speed_alvo_kmh = None
+    if distance_m and distance_m > 0 and sport == "bike":
+        speed_alvo_kmh = round(distance_m / 1000 / duration_h, 1)
+
+    # Hidratacao
+    fluid_ml_per_h = 600
+    fluid_total_ml = int(fluid_ml_per_h * duration_h)
+
+    # Carbo
+    if duration_h < 1:
+        carbs_g_per_h = 0
+        carbs_msg = "Treino curto — só água."
+    elif duration_h < 2.5:
+        carbs_g_per_h = 45
+        carbs_msg = "Repor a partir de 45min — gel ou sport drink."
+    else:
+        carbs_g_per_h = 75
+        carbs_msg = "Repor desde o início — múltiplas fontes."
+    carbs_total_g = int(carbs_g_per_h * duration_h)
+
+    # Sodio
+    sodium_mg_per_h = 500 if duration_h > 1.5 else 300
+
+    return {
+        "duration_label": f"{int(duration_s // 60)}min",
+        "pace_alvo_s_km": pace_alvo_s_km,
+        "speed_alvo_kmh": speed_alvo_kmh,
+        "fluid_ml_per_h": fluid_ml_per_h,
+        "fluid_total_ml": fluid_total_ml,
+        "carbs_g_per_h": carbs_g_per_h,
+        "carbs_total_g": carbs_total_g,
+        "carbs_message": carbs_msg,
+        "sodium_mg_per_h": sodium_mg_per_h,
+    }
+
+
+def _build_execution(
+    executions: list[dict] | None,
+    prescribed_dur_s: int | None,
+    prescribed_dist_m: float | None,
+    prescribed_blocks: list[dict],
+) -> dict | None:
+    """Compara prescrito × executado. Retorna None se nao houve execucao.
+
+    Score baseado em (1) duracao cumprida (% do prescrito), (2) distancia (se aplicavel).
+    """
+    if not executions:
+        return None
+    # Pega a execucao mais recente (caso tenha duplicatas)
+    exec_data = max(executions, key=lambda e: e.get("started_at") or "")
+    actual_dur = exec_data["duration_s"] or 0
+    actual_dist = exec_data["distance_m"] or 0
+    actual_pace = exec_data["avg_pace_s_km"]
+    actual_hr = exec_data["avg_hr"]
+
+    duration_pct = None
+    if prescribed_dur_s and prescribed_dur_s > 0:
+        duration_pct = round(actual_dur / prescribed_dur_s * 100)
+
+    distance_pct = None
+    if prescribed_dist_m and prescribed_dist_m > 0:
+        distance_pct = round(actual_dist / prescribed_dist_m * 100)
+
+    # Score geral: completou se >=80% da duracao prescrita
+    completion_pct = duration_pct if duration_pct is not None else (
+        distance_pct if distance_pct is not None else None
+    )
+    if completion_pct is None:
+        status = "executado"
+        status_label = "Executado"
+    elif completion_pct >= 95:
+        status = "completo"
+        status_label = "Completo"
+    elif completion_pct >= 80:
+        status = "quase"
+        status_label = "Quase completo"
+    elif completion_pct >= 50:
+        status = "parcial"
+        status_label = "Parcial"
+    else:
+        status = "iniciado"
+        status_label = "Apenas iniciado"
+
+    # Detalhes pace/HR
+    notes: list[str] = []
+    if actual_dur and prescribed_dur_s:
+        diff_min = (actual_dur - prescribed_dur_s) / 60
+        if abs(diff_min) > 1:
+            notes.append(
+                f"Duração: {round(actual_dur/60)}min ({duration_pct}% do prescrito, {'+' if diff_min > 0 else ''}{round(diff_min)}min)"
+            )
+        else:
+            notes.append(f"Duração: {round(actual_dur/60)}min (igual ao prescrito)")
+    if actual_dist and prescribed_dist_m:
+        notes.append(f"Distância: {actual_dist/1000:.2f}km (prescrito ~{prescribed_dist_m/1000:.2f}km, {distance_pct}%)")
+    elif actual_dist:
+        notes.append(f"Distância: {actual_dist/1000:.2f}km")
+    if actual_pace:
+        m, s = divmod(int(actual_pace), 60)
+        notes.append(f"Pace médio: {m}:{s:02d}/km")
+    if actual_hr:
+        notes.append(f"FC média: {int(actual_hr)} bpm")
+    if exec_data.get("calories"):
+        notes.append(f"Gasto: {int(exec_data['calories'])} kcal")
+
+    return {
+        "completed": True,
+        "status": status,
+        "status_label": status_label,
+        "completion_pct": completion_pct,
+        "activity_id": exec_data["activity_id"],
+        "external_id": exec_data["external_id"],
+        "source": exec_data["source"],
+        "actual_duration_s": actual_dur,
+        "actual_distance_m": actual_dist,
+        "actual_pace_s_km": int(actual_pace) if actual_pace else None,
+        "actual_avg_hr": int(actual_hr) if actual_hr else None,
+        "actual_calories": int(exec_data["calories"]) if exec_data.get("calories") else None,
+        "started_at": exec_data["started_at"],
+        "notes": notes,
+    }
+
+
 def _step_to_block(step: dict, sport: str) -> dict:
     zone = _step_zone(step, sport)
     pace = (
@@ -278,6 +422,39 @@ def coach_schedule(start: date | None = None) -> dict[str, Any]:
             (start.isoformat(), end.isoformat()),
         ).fetchall()
 
+        # Mapa de workouts executados (workoutId no raw da activity)
+        executed_map: dict[int, list[dict[str, Any]]] = {}
+        act_rows = conn.execute(
+            """
+            SELECT id, source, external_id, sport, started_at, duration_s, distance_m,
+                   avg_hr, max_hr, avg_pace_s_km, calories, raw
+            FROM activities
+            WHERE started_at >= ?
+            """,
+            (start.isoformat(),),
+        ).fetchall()
+        for ar in act_rows:
+            try:
+                raw = json.loads(ar["raw"] or "{}")
+                wid = raw.get("workoutId")
+                if wid:
+                    executed_map.setdefault(int(wid), []).append({
+                        "activity_id": ar["id"],
+                        "external_id": ar["external_id"],
+                        "source": ar["source"],
+                        "sport": ar["sport"],
+                        "started_at": ar["started_at"],
+                        "duration_s": ar["duration_s"],
+                        "distance_m": ar["distance_m"],
+                        "avg_hr": ar["avg_hr"],
+                        "max_hr": ar["max_hr"],
+                        "avg_pace_s_km": ar["avg_pace_s_km"],
+                        "calories": ar["calories"],
+                        "raw": raw,
+                    })
+            except (json.JSONDecodeError, ValueError, TypeError):
+                continue
+
     by_day: dict[int, list[dict[str, Any]]] = {i: [] for i in range(7)}
     for r in rows:
         d = date.fromisoformat(r["scheduled_date"])
@@ -298,18 +475,24 @@ def coach_schedule(start: date | None = None) -> dict[str, Any]:
                 blocks = _summarize_steps(steps, sport)
             except json.JSONDecodeError:
                 blocks = []
+        wid = r["workout_id"]
+        prescribed_dist_m = r["estimated_distance_m"] or r["distance_m"]
+        executed = _build_execution(executed_map.get(int(wid)) if wid else None, dur_s, prescribed_dist_m, blocks)
+        fueling = _build_fueling(sport, dur_s, prescribed_dist_m, blocks)
         by_day[idx].append({
             "sport": sport,
             "icon": SPORT_ICON.get(sport, "•"),
             "kind": kind,
             "label": r["title"],
             "duration_min": round(dur_s / 60) if dur_s else 0,
-            "distance_km": round(dist_m / 1000, 1) if dist_m else None,
+            "distance_km": round(prescribed_dist_m / 1000, 1) if prescribed_dist_m else None,
             "zone": zone,
             "target": None,
             "is_race": bool(r["is_race"]),
             "blocks": blocks,
             "has_structure": bool(blocks),
+            "executed": executed,
+            "fueling": fueling,
         })
 
     days: list[dict[str, Any]] = []
@@ -480,8 +663,8 @@ def coach_today() -> dict[str, Any]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT sw.sport_type, sw.title, sw.duration_s, sw.distance_m, sw.is_race,
-                   wd.estimated_duration_s, wd.steps_json
+            SELECT sw.workout_id, sw.sport_type, sw.title, sw.duration_s, sw.distance_m, sw.is_race,
+                   wd.estimated_duration_s, wd.steps_json, wd.estimated_distance_m
             FROM scheduled_workouts sw
             LEFT JOIN workout_details wd ON wd.workout_id = sw.workout_id
             WHERE sw.scheduled_date = ?
@@ -489,6 +672,32 @@ def coach_today() -> dict[str, Any]:
             """,
             (today.isoformat(),),
         ).fetchall()
+
+        # Mapa de execucoes pra hoje
+        executed_map: dict[int, list[dict[str, Any]]] = {}
+        act_rows = conn.execute(
+            """
+            SELECT id, source, external_id, sport, started_at, duration_s, distance_m,
+                   avg_hr, max_hr, avg_pace_s_km, calories, raw
+            FROM activities
+            WHERE started_at LIKE ?
+            """,
+            (f"{today.isoformat()}%",),
+        ).fetchall()
+        for ar in act_rows:
+            try:
+                raw = json.loads(ar["raw"] or "{}")
+                wid = raw.get("workoutId")
+                if wid:
+                    executed_map.setdefault(int(wid), []).append({
+                        "activity_id": ar["id"], "external_id": ar["external_id"], "source": ar["source"],
+                        "sport": ar["sport"], "started_at": ar["started_at"],
+                        "duration_s": ar["duration_s"], "distance_m": ar["distance_m"],
+                        "avg_hr": ar["avg_hr"], "max_hr": ar["max_hr"],
+                        "avg_pace_s_km": ar["avg_pace_s_km"], "calories": ar["calories"], "raw": raw,
+                    })
+            except (json.JSONDecodeError, ValueError, TypeError):
+                continue
     items = []
     for r in rows:
         sport = SPORT_MAP.get((r["sport_type"] or "").lower(), "other")
@@ -504,16 +713,25 @@ def coach_today() -> dict[str, Any]:
                 blocks = _summarize_steps(steps, sport)
             except json.JSONDecodeError:
                 blocks = []
+        wid = r["workout_id"]
+        prescribed_dist_m = r["estimated_distance_m"] or r["distance_m"]
+        executed = _build_execution(
+            executed_map.get(int(wid)) if wid else None,
+            dur_s, prescribed_dist_m, blocks,
+        )
+        fueling = _build_fueling(sport, dur_s, prescribed_dist_m, blocks)
         items.append({
             "sport": sport,
             "icon": SPORT_ICON.get(sport, "•"),
             "kind": kind,
             "label": r["title"],
             "duration_min": round(dur_s / 60) if dur_s else 0,
-            "distance_km": round(r["distance_m"] / 1000, 1) if r["distance_m"] else None,
+            "distance_km": round(prescribed_dist_m / 1000, 1) if prescribed_dist_m else None,
             "zone": zone,
             "is_race": bool(r["is_race"]),
             "blocks": blocks,
             "has_structure": bool(blocks),
+            "executed": executed,
+            "fueling": fueling,
         })
     return {"date": today.isoformat(), "workouts": items}

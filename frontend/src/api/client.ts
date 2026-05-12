@@ -185,6 +185,10 @@ export interface Dashboard {
   sleep_detail: SleepDetailDashboard;
   wellness: WellnessDashboard;
   year_over_year: YearOverYear;
+  performance_mgmt: PMCDashboard;
+  cycle_performance: CyclePerformanceDashboard;
+  vdot: VdotDashboard;
+  temperature_trend: TemperatureTrend;
   ai_available: boolean;
 }
 
@@ -235,6 +239,91 @@ export interface WeeklySummary {
   error: string | null;
 }
 
+export interface WrappedSportStat {
+  sport: string;
+  label: string;
+  sessions: number;
+  total_km: number;
+  total_hours: number;
+  total_kcal: number;
+  pct_of_sessions: number;
+}
+
+export interface WrappedMonth {
+  month: number;
+  label: string;
+  sessions: number;
+  total_km: number;
+  total_hours: number;
+}
+
+export interface WrappedDashboard {
+  available: boolean;
+  year: number;
+  totals?: {
+    sessions: number;
+    km: number;
+    hours: number;
+    kcal_activities: number;
+    kcal_total_day: number;
+    elevation_m: number;
+    steps: number;
+    active_days: number;
+    rest_days: number;
+  };
+  top_sport?: WrappedSportStat | null;
+  sport_stats?: WrappedSportStat[];
+  best_month?: WrappedMonth | null;
+  monthly_series?: WrappedMonth[];
+  fav_weekday?: { weekday: number; label: string; sessions: number } | null;
+  longest_streak?: { days: number; start: string; end: string } | null;
+  biggest_distance?: { sport: string; label: string; date: string; distance_km: number; duration_h: number } | null;
+  longest_workout?: { sport: string; label: string; date: string; duration_h: number; distance_km: number } | null;
+}
+
+export async function fetchWrapped(year?: number): Promise<WrappedDashboard> {
+  const url = year ? `/api/wrapped?year=${year}` : "/api/wrapped";
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+export interface RaceFueling {
+  estimated_duration_s: number;
+  estimated_duration_label: string;
+  prediction_source: string;
+  pace_alvo_s_km: number | null;
+  fluid_ml_per_h: number;
+  fluid_total_ml: number;
+  carbs_g_per_h: number;
+  carbs_total_g: number;
+  carbs_message: string;
+  sodium_mg_per_h: number;
+  splits: Array<{ km: number; cumulative_s: number }>;
+}
+
+export interface RaceRiegelPrediction {
+  predicted_time_s: number;
+  predicted_pace_s_km: number;
+  confidence: string | null;
+  based_on: { distance_m: number; duration_s: number; started_at: string };
+}
+
+export interface RaceReadinessComponent {
+  name: string;
+  score: number;
+  weight: number;
+  value: string | number;
+  note: string;
+}
+
+export interface RaceReadiness {
+  score: number;
+  status: "pronta" | "boa" | "regular" | "precaucao";
+  status_message: string;
+  components: RaceReadinessComponent[];
+}
+
 export interface Race {
   id: number;
   name: string;
@@ -256,7 +345,11 @@ export interface Race {
     based_on_label: string;
     base_distance_m: number;
     approximation: boolean;
+    scaled_via_riegel?: boolean;
   } | null;
+  riegel_prediction: RaceRiegelPrediction | null;
+  fueling: RaceFueling | null;
+  readiness: RaceReadiness | null;
 }
 
 export interface CyclePhase {
@@ -315,6 +408,35 @@ export type WorkoutBlock =
       children: WorkoutBlock[];
     };
 
+export interface CoachExecution {
+  completed: boolean;
+  status: "completo" | "quase" | "parcial" | "iniciado" | "executado";
+  status_label: string;
+  completion_pct: number | null;
+  activity_id: number;
+  external_id: string;
+  source: string;
+  actual_duration_s: number;
+  actual_distance_m: number;
+  actual_pace_s_km: number | null;
+  actual_avg_hr: number | null;
+  actual_calories: number | null;
+  started_at: string;
+  notes: string[];
+}
+
+export interface CoachFueling {
+  duration_label: string;
+  pace_alvo_s_km: number | null;
+  speed_alvo_kmh: number | null;
+  fluid_ml_per_h: number;
+  fluid_total_ml: number;
+  carbs_g_per_h: number;
+  carbs_total_g: number;
+  carbs_message: string;
+  sodium_mg_per_h: number;
+}
+
 export interface CoachWorkout {
   sport: "run" | "bike" | "swim" | "strength" | "yoga" | "walking" | "other";
   icon: string;
@@ -327,6 +449,8 @@ export interface CoachWorkout {
   is_race: boolean;
   blocks: WorkoutBlock[];
   has_structure: boolean;
+  executed: CoachExecution | null;
+  fueling: CoachFueling | null;
 }
 
 export interface CoachDay {
@@ -389,6 +513,25 @@ export interface StrengthRoutineSummary {
 
 export interface StrengthRoutine extends StrengthRoutineSummary {
   exercises: StrengthExercise[];
+}
+
+export interface PMCPoint {
+  date: string;
+  load: number;
+  ctl: number;
+  atl: number;
+  tsb: number;
+}
+
+export interface PMCDashboard {
+  available: boolean;
+  days: number;
+  series: PMCPoint[];
+  current?: PMCPoint;
+  ctl_delta_4w?: number | null;
+  zone?: "super_fresh" | "fresh" | "productive" | "overload" | "risk";
+  zone_label?: string;
+  message?: string;
 }
 
 export interface YoYSportCompare {
@@ -464,6 +607,17 @@ export interface SleepNightDetail {
   score: number | null;
 }
 
+export interface SleepDebt {
+  available: boolean;
+  days: number;
+  nights_counted?: number;
+  target_h: number;
+  debt_h: number;
+  avg_short_min_per_night?: number;
+  status?: "ok" | "leve" | "moderada" | "alta";
+  message?: string;
+}
+
 export interface SleepDetailDashboard {
   available: boolean;
   days: number;
@@ -478,6 +632,65 @@ export interface SleepDetailDashboard {
   nights_low_score?: number;
   verdict?: "excelente" | "bom" | "regular" | "ruim";
   message?: string;
+  sleep_debt?: SleepDebt;
+}
+
+export interface TemperatureTrendPoint {
+  date: string;
+  sport: string;
+  avg_temp_c: number;
+  max_temp_c: number;
+  avg_hr: number | null;
+  avg_pace_s_km: number | null;
+}
+
+export interface TemperatureTrend {
+  available: boolean;
+  reason?: string;
+  days?: number;
+  series?: TemperatureTrendPoint[];
+  avg_temp_c?: number;
+  max_temp_c?: number;
+  hot_days_30plus?: number;
+  cool_days_under20?: number;
+  total_sessions?: number;
+  insight?: string | null;
+}
+
+export interface VdotPace {
+  key: string;
+  label: string;
+  pct_vdot: number;
+  pace_s_km: number;
+  description: string;
+}
+
+export interface VdotDashboard {
+  available: boolean;
+  reason?: string;
+  vdot?: number;
+  based_on?: { activity_id: number; started_at: string; distance_km: number; duration_s: number; pace_s_km: number | null };
+  paces?: VdotPace[];
+}
+
+export interface CyclePhasePerformance {
+  phase: "menstrual" | "folicular" | "ovulatoria" | "lutea";
+  label: string;
+  color: string;
+  sessions: number;
+  avg_duration_min: number;
+  total_km: number;
+  avg_pace_s_km: number | null;
+  avg_hr: number | null;
+}
+
+export interface CyclePerformanceDashboard {
+  available: boolean;
+  reason?: string;
+  days?: number;
+  total_sessions_classified?: number;
+  by_phase?: CyclePhasePerformance[];
+  insights?: string[];
 }
 
 export interface CaloriesDay {
@@ -626,6 +839,18 @@ export async function fetchWeeklySummary(useAi: boolean): Promise<WeeklySummary>
 
 export async function fetchDashboard(): Promise<Dashboard> {
   const res = await fetch("/api/dashboard");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export interface RefreshResult {
+  ok: boolean;
+  elapsed_s: number;
+  results: Record<string, { inserted?: number; updated?: number; error?: string }>;
+}
+
+export async function triggerRefresh(): Promise<RefreshResult> {
+  const res = await fetch("/api/refresh", { method: "POST" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

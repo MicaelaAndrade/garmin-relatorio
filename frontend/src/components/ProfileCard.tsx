@@ -123,24 +123,24 @@ export function ProfileCard({ data }: { data: ProfileDashboard }) {
       </div>
 
       {weightSeries.length >= 2 && (
-        <div style={{ marginTop: 14 }}>
-          <div className="label" style={{ marginBottom: 4 }}>Evolução do peso</div>
-          <ResponsiveContainer width="100%" height={120}>
-            <LineChart data={weightSeries} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+        <div style={{ marginTop: 8 }}>
+          <div className="label" style={{ marginBottom: 2, fontSize: 10 }}>Evolução do peso</div>
+          <ResponsiveContainer width="100%" height={80}>
+            <LineChart data={weightSeries} margin={{ top: 2, right: 4, bottom: 0, left: 0 }}>
               <CartesianGrid stroke="#2a3340" strokeDasharray="3 3" />
-              <XAxis dataKey="month" stroke="#8b96a8" fontSize={10} />
+              <XAxis dataKey="month" stroke="#8b96a8" fontSize={9} />
               <YAxis
                 stroke="#8b96a8"
-                fontSize={10}
+                fontSize={9}
                 unit="kg"
                 domain={["dataMin - 1", "dataMax + 1"]}
-                width={36}
+                width={30}
               />
               <Tooltip
                 contentStyle={{ background: "#1a2028", border: "1px solid #2a3340", borderRadius: 8 }}
                 formatter={(v: number) => [`${v} kg`, "Peso"]}
               />
-              <Line type="monotone" dataKey="kg" stroke="#60a5fa" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="kg" stroke="#60a5fa" strokeWidth={2} dot={{ r: 2 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

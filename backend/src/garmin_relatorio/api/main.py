@@ -1,6 +1,8 @@
 """FastAPI servindo o dashboard."""
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,20 +13,25 @@ from ..analysis import (
     coach,
     comparisons,
     cycle,
+    cycle_performance,
     garmin_metrics,
     overtraining,
     pace_evolution,
     performance,
+    performance_mgmt,
     personal_records,
     profile as profile_analysis,
     races as races_analysis,
     recovery,
     sleep_detail,
     strength,
+    temperature_trend,
     wellness,
     training_plan,
+    vdot,
     volume,
     weekly_summary,
+    wrapped,
     year_over_year,
     zones_distribution,
 )
@@ -35,7 +42,7 @@ app = FastAPI(title="garmin-relatorio", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -48,6 +55,47 @@ def _startup() -> None:
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.post("/api/refresh")
+def refresh_now(days: int = 2) -> dict:
+    """Roda ingest live sob demanda. Retorna resumo + duracao.
+
+    Best-effort: nao aborta se uma fonte falhar.
+    """
+    import time
+    import os
+    from ..ingest import garmin as garmin_ingest
+
+    start = time.perf_counter()
+    results: dict[str, Any] = {}
+
+    def _safe(label: str, fn):
+        try:
+            results[label] = fn()
+        except Exception as e:
+            results[label] = {"error": str(e)}
+
+    if os.getenv("GARMIN_EMAIL") and os.getenv("GARMIN_PASSWORD"):
+        _safe("activities", lambda: garmin_ingest.ingest_activities(days=days))
+        _safe("sleep", lambda: garmin_ingest.ingest_sleep(days=min(days, 7)))
+        _safe("daily", lambda: garmin_ingest.ingest_daily(days=min(days, 7)))
+        _safe("scheduled_workouts", lambda: garmin_ingest.ingest_scheduled_workouts(months_ahead=1))
+    else:
+        results["error"] = "Garmin credentials não configuradas (.env)"
+
+    # Strava opcional
+    from pathlib import Path
+    strava_token = Path(__file__).resolve().parents[3] / "data" / "strava_token.json"
+    if strava_token.exists():
+        from ..ingest import strava as strava_ingest
+        _safe("strava", lambda: strava_ingest.ingest_activities(days=days))
+
+    return {
+        "ok": True,
+        "elapsed_s": round(time.perf_counter() - start, 2),
+        "results": results,
+    }
 
 
 @app.get("/api/dashboard")
@@ -96,6 +144,10 @@ def dashboard() -> dict:
         "sleep_detail": sleep_detail.sleep_detail(30),
         "wellness": wellness.wellness_dashboard(30),
         "year_over_year": year_over_year.year_over_year(),
+        "performance_mgmt": performance_mgmt.performance_management(180),
+        "cycle_performance": cycle_performance.cycle_performance(180),
+        "vdot": vdot.vdot_dashboard(),
+        "temperature_trend": temperature_trend.temperature_trend(90),
         "ai_available": bool(__import__("os").getenv("ANTHROPIC_API_KEY", "").strip()),
     }
 
@@ -221,6 +273,11 @@ def get_calories(days: int = 30) -> dict:
 @app.get("/api/sleep-detail")
 def get_sleep_detail(days: int = 30) -> dict:
     return sleep_detail.sleep_detail(days)
+
+
+@app.get("/api/wrapped")
+def get_wrapped(year: int | None = None) -> dict:
+    return wrapped.wrapped(year)
 
 
 @app.get("/api/strength/{routine_id}")

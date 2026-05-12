@@ -132,6 +132,39 @@ export function SleepDetailCard({ data }: { data: SleepDetailDashboard }) {
           {" "}nesta janela — pode estar influenciando seu overtraining score.
         </div>
       ) : null}
+
+      {data.sleep_debt?.available && (
+        <div
+          className="cal-note"
+          style={{
+            marginTop: 12,
+            borderLeftColor:
+              data.sleep_debt.status === "alta"
+                ? "var(--danger)"
+                : data.sleep_debt.status === "moderada"
+                ? "var(--warn)"
+                : data.sleep_debt.status === "leve"
+                ? "var(--info)"
+                : "var(--accent)",
+            background:
+              data.sleep_debt.status === "alta"
+                ? "rgba(239, 68, 68, 0.08)"
+                : data.sleep_debt.status === "moderada"
+                ? "rgba(251, 191, 36, 0.08)"
+                : "rgba(96, 165, 250, 0.08)",
+          }}
+        >
+          🛌 <strong>Sleep debt ({data.sleep_debt.days}d):</strong>{" "}
+          <strong style={{ fontFamily: "ui-monospace, monospace" }}>
+            {data.sleep_debt.debt_h > 0 ? "−" : "+"}{Math.abs(data.sleep_debt.debt_h)}h
+          </strong>{" "}
+          vs alvo {data.sleep_debt.target_h}h/noite
+          {data.sleep_debt.avg_short_min_per_night
+            ? ` · ~${data.sleep_debt.avg_short_min_per_night}min/noite a menos`
+            : ""}
+          . {data.sleep_debt.message}
+        </div>
+      )}
     </>
   );
 }
