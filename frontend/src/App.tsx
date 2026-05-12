@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { BodyCompositionCard } from "./components/BodyCompositionCard";
 import { CalendarHeatmap } from "./components/CalendarHeatmap";
 import { Card, type DashTab } from "./components/Card";
 import { CaloriesCard } from "./components/CaloriesCard";
 import { CoachScheduleCard } from "./components/CoachScheduleCard";
 import { CurrentWeekCard } from "./components/CurrentWeekCard";
 import { CycleCard } from "./components/CycleCard";
+import { DataSourcesCard } from "./components/DataSourcesCard";
 import { CyclePerformanceCard } from "./components/CyclePerformanceCard";
 import { GarminPredictionsCard } from "./components/GarminPredictionsCard";
 import { InjuryRiskCard } from "./components/InjuryRiskCard";
@@ -238,6 +240,12 @@ export default function App() {
         </Card>
         <Card storageKey="swim-technique" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <SwimTechniqueCard data={data.swim_technique} />
+        </Card>
+        <Card storageKey="body-composition" className="col-12" defaultCollapsed tabs={["today", "analysis"]} currentTab={tab}>
+          <BodyCompositionCard data={data.body_composition} />
+        </Card>
+        <Card storageKey="data-sources" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+          <DataSourcesCard data={data.data_sources} />
         </Card>
         {(() => {
           let cycleVisible = false;

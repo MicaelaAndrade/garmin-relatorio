@@ -49,6 +49,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_cron.add_argument("--days", type=int, default=7)
 
+    p_zepp = sub.add_parser(
+        "ingest-zepp",
+        help="Importa export do Zepp Life (Mi Body Composition Scale 2 etc)",
+    )
+    p_zepp.add_argument("path", help="Path do diretório do export (ex: ~/Downloads/3312646638_xxxx)")
+
     p_mfit = sub.add_parser(
         "import-mfit",
         help="Importa PDF do MFit Personal (fortalecimento)",
@@ -124,6 +130,13 @@ def main(argv: list[str] | None = None) -> int:
         from .ingest import cron_ingest
 
         return cron_ingest.run(days=args.days)
+
+    elif args.cmd == "ingest-zepp":
+        from pathlib import Path
+
+        from .ingest import zepp
+
+        print(zepp.ingest_all(Path(args.path).expanduser()))
 
     elif args.cmd == "import-mfit":
         from .ingest import mfit

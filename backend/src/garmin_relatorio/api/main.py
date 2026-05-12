@@ -9,9 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from ..analysis import (
     acwr,
     activities,
+    body_composition,
     calories,
     coach,
     comparisons,
+    data_sources,
     cycle,
     cycle_performance,
     garmin_metrics,
@@ -150,6 +152,8 @@ def dashboard() -> dict:
         "vdot": vdot.vdot_dashboard(),
         "temperature_trend": temperature_trend.temperature_trend(90),
         "swim_technique": swim_technique.swim_technique_progress(12),
+        "body_composition": body_composition.body_composition_dashboard(180),
+        "data_sources": data_sources.data_sources_status(),
         "ai_available": bool(__import__("os").getenv("ANTHROPIC_API_KEY", "").strip()),
     }
 
@@ -260,6 +264,16 @@ def get_coach_today() -> dict:
 @app.get("/api/swim-technique")
 def get_swim_technique(limit: int = 12) -> dict:
     return swim_technique.swim_technique_progress(limit=limit)
+
+
+@app.get("/api/body-composition")
+def get_body_composition(days: int = 180) -> dict:
+    return body_composition.body_composition_dashboard(days=days)
+
+
+@app.get("/api/data-sources")
+def get_data_sources() -> dict:
+    return data_sources.data_sources_status()
 
 
 @app.get("/api/strength")

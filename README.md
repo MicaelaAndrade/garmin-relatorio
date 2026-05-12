@@ -59,10 +59,18 @@ O backend aceita **4 fontes** que podem coexistir (dedup automático por timesta
 \** Strava raramente carrega métricas de piscina (SWOLF/DPS) — depende do dispositivo de origem.
 \*** API live do Garmin não expõe menstrual data — só o export GDPR traz.
 
+### Fontes complementares
+
+| Card / métrica                            | Fonte                                                      |
+|-------------------------------------------|------------------------------------------------------------|
+| **Composição corporal** (peso, gordura %, músculo %, água, gordura visceral, BMR) | **Zepp Life** (export CSV) — funciona com Mi Body Composition Scale 2 e demais balanças Xiaomi/Amazfit |
+| **Status das fontes de dados**            | metaview interna (não precisa ingest) — mostra cobertura e quando atualizar cada fonte |
+
 **Conclusão prática:**
 - **Tem Garmin?** Use **Garmin GDPR export** pra carga inicial (1 zip, anos de histórico) + **Garmin live** pra atualizar.
 - **Não tem Garmin?** Use **Strava**. Você perde sono/HRV/VO2max, mas ganha tudo o que envolve só as atividades.
 - **Tem .fit soltos?** Joga em `backend/data/exports/` e roda `ingest-fit`.
+- **Tem balança de bioimpedância Xiaomi/Amazfit?** Exporte via Zepp Life e adicione **composição corporal** ao dashboard (peso + gordura % + músculo % + visceral + BMR ao longo do tempo, com bandas-alvo).
 
 ---
 
@@ -163,6 +171,23 @@ uv run garmin-relatorio ingest-fit
 
 Útil pra usuários de Polar, Coros, Suunto, ou quando você baixou activities individuais.
 
+### Zepp Life (Mi Body Composition Scale 2 e similares)
+
+Quem tem balança de bioimpedância da Xiaomi/Amazfit que sincroniza com o app **Zepp Life** (ou Mi Fit antigo): dá pra exportar todo o histórico e plotar evolução de **peso, gordura %, músculo %, água %, gordura visceral, massa óssea e BMR** no dashboard.
+
+1. No app Zepp Life: **Perfil** → **Configurações** → **Conta Mi Fitness** → **Sobre** → **Exportar dados**.
+2. Aguarde o email com link do ZIP (geralmente alguns minutos).
+3. Baixa e descompacta. Vai gerar um diretório tipo `3312646638_xxxxx/` com subpastas (`BODY/`, `SLEEP/`, `HEARTRATE/`, etc).
+4. Roda o ingest apontando pra esse diretório:
+   ```bash
+   cd backend
+   uv run garmin-relatorio ingest-zepp ~/Downloads/3312646638_xxxxx
+   ```
+
+O ingest é **idempotente** (rodar de novo só adiciona o que for novo) e usa apenas a pasta `BODY/`. Outras subpastas do export Zepp são ignoradas por enquanto — se você usa Garmin pra atividades/sono/HR, ele já cobre isso melhor.
+
+**Frequência recomendada:** exportar 1x por mês (ou mais frequente se pesa todo dia). Quando os dados ficarem >30 dias velhos, o card "Status das fontes de dados" sinaliza ⚠ e mostra o comando exato pra atualizar.
+
 ---
 
 ## Uso diário
@@ -207,6 +232,7 @@ O dashboard tem **3 abas**: `Hoje` (resumo do dia), `Análise` (gráficos longit
 | **Overtraining detector** | Score 0–4 multi-métrica (HRV + RHR + sleep score + sono curto consecutivo) |
 | **Sono e recuperação** | Horas das últimas 3 noites + flag de readiness |
 | **Coach (Treius/Garmin)** | Treinos prescritos pelo coach com adesão ✅ por modalidade (run/bike/swim) |
+| **Composição corporal** | Peso, gordura %, músculo %, água %, gordura visceral, BMR — com bandas-alvo + tendência (via Zepp Life) |
 | **Atividades recentes** | Últimas 20 com pace, FC, distância, duração |
 
 ### Análise (evolução)
@@ -229,6 +255,7 @@ O dashboard tem **3 abas**: `Hoje` (resumo do dia), `Análise` (gráficos longit
 | **Temperatura nos treinos** | Scatter HR × temperatura — mostra impacto do calor |
 | **Cycle performance** | Performance por fase do ciclo menstrual (folicular/lutea/menstrual/ovulatória) — opt-in |
 | **Evolução técnica · Natação** | Histórico de DPS, SWOLF, cadência, pace puro das últimas 12 sessões + tendências + insights |
+| **Status das fontes de dados** | Cobertura por fonte (Garmin / Zepp / Strava) com semáforo de quando atualizar e comando sugerido |
 
 ### Coach workout adherence
 
@@ -397,8 +424,11 @@ garmin-relatorio/
 - [x] Coach adherence pra swim e bike (não só run)
 - [x] Análise técnica de natação (DPS, SWOLF, tendências)
 - [x] Performance Management (PMC), VDOT, Race Readiness, Sleep debt, Temperature trend, Year-over-Year
+- [x] Composição corporal via balança Zepp Life / Mi Body Composition Scale 2
+- [x] Status das fontes de dados (lembrete de quando atualizar cada fonte)
 - [ ] Export PDF do relatório mensal
 - [ ] Modo "demo" com dados sintéticos pra quem clonar sem fonte conectada
+- [ ] Log manual de cargas no fortalecimento (input semanal + gráfico por exercício)
 
 ---
 

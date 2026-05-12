@@ -213,6 +213,24 @@ CREATE TABLE IF NOT EXISTS workout_details (
     fetched_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS body_composition (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    source          TEXT NOT NULL,              -- 'zepp', 'garmin', etc
+    measured_at     TEXT NOT NULL,              -- ISO8601 UTC
+    weight_kg       REAL,
+    height_cm       REAL,
+    bmi             REAL,
+    fat_pct         REAL,
+    water_pct       REAL,
+    muscle_pct      REAL,
+    bone_mass_kg    REAL,
+    bmr_kcal        INTEGER,
+    visceral_fat    REAL,
+    raw             TEXT,
+    UNIQUE(source, measured_at)
+);
+CREATE INDEX IF NOT EXISTS idx_body_comp_measured_at ON body_composition(measured_at);
+
 CREATE TABLE IF NOT EXISTS ingest_log (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     source          TEXT NOT NULL,

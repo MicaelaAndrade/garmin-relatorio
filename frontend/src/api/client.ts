@@ -191,7 +191,75 @@ export interface Dashboard {
   vdot: VdotDashboard;
   temperature_trend: TemperatureTrend;
   swim_technique: SwimTechniqueProgress;
+  body_composition: BodyComposition;
+  data_sources: DataSourcesStatus;
   ai_available: boolean;
+}
+
+export type DataSourceStatus = "fresh" | "ok" | "stale" | "old" | "unknown";
+
+export interface DataSource {
+  kind: string;
+  label: string;
+  icon: string;
+  first: string | null;
+  last: string | null;
+  count: number;
+  days_since: number | null;
+  status: DataSourceStatus;
+  status_label: string;
+  suggestion: string | null;
+}
+
+export interface DataSourcesStatus {
+  available: boolean;
+  today: string;
+  coverage: { first: string | null; last: string | null };
+  sources: DataSource[];
+  needs_attention: boolean;
+}
+
+export interface BodyCompositionPoint {
+  date: string;
+  measured_at: string;
+  weight_kg: number | null;
+  bmi: number | null;
+  fat_pct: number | null;
+  water_pct: number | null;
+  muscle_pct: number | null;
+  bone_mass_kg: number | null;
+  bmr_kcal: number | null;
+  visceral_fat: number | null;
+  source: string;
+}
+
+export interface BodyMetricRating {
+  label: string;
+  rating: "good" | "warn" | "bad";
+}
+
+export interface BodyMetric {
+  key: string;
+  label: string;
+  value: number | null;
+  unit: string;
+  rating: BodyMetricRating | null;
+  delta_4w: number | null;
+}
+
+export interface BodyComposition {
+  available: boolean;
+  reason?: string;
+  count?: number;
+  first_date?: string;
+  latest_date?: string;
+  latest?: BodyCompositionPoint;
+  first?: BodyCompositionPoint;
+  metrics?: BodyMetric[];
+  total_delta?: Partial<Record<"weight_kg" | "fat_pct" | "muscle_pct", number>>;
+  series?: BodyCompositionPoint[];
+  insights?: string[];
+  today?: string;
 }
 
 export interface SwimTechniqueSession {
