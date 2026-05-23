@@ -1,0 +1,14 @@
+[Unit]
+Description=Garmin Relatorio — API FastAPI (dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Documentos/garmin-relatorio/backend
+ExecStart=%h/.local/bin/uv run garmin-relatorio serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

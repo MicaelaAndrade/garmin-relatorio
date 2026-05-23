@@ -504,6 +504,7 @@ export type WorkoutBlock =
       duration_s: number;
       zone: string | null;
       pace: string | null;
+      hr_target: string | null;
       description: string | null;
       count: number;
     }
@@ -576,6 +577,9 @@ export interface CoachWorkout {
   has_structure: boolean;
   executed: CoachExecution | null;
   fueling: CoachFueling | null;
+  routine_id?: number;
+  routine_label?: string | null;
+  exercise_count?: number;
 }
 
 export interface CoachDay {

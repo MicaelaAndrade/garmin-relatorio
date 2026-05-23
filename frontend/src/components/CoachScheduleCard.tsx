@@ -75,6 +75,7 @@ const KIND_COLOR: Record<string, string> = {
   tech: "#a78bfa",
   race: "#ef4444",
   workout: "#8b96a8",
+  strength: "#a78bfa",
 };
 
 const ZONE_COLOR: Record<string, string> = {
@@ -83,6 +84,17 @@ const ZONE_COLOR: Record<string, string> = {
   Z3: "#fbbf24",
   Z4: "#ef4444",
   Z5: "#ef4444",
+};
+
+const KIND_LABEL_PT: Record<string, string> = {
+  warmup: "Aquecer",
+  cooldown: "Desaquecer",
+  recovery: "Recuperar",
+  rest: "Pausa",
+  interval: "Intervalo",
+  active: "Ativo",
+  run: "Correr",
+  other: "",
 };
 
 function StepRow({ b, depth = 0 }: { b: WorkoutBlock; depth?: number }) {
@@ -103,12 +115,14 @@ function StepRow({ b, depth = 0 }: { b: WorkoutBlock; depth?: number }) {
     );
   }
   const zoneColor = b.zone ? ZONE_COLOR[b.zone] || "var(--muted)" : "var(--muted)";
+  const kindLabel = KIND_LABEL_PT[b.kind] ?? b.kind;
   return (
     <div className="step-row">
       <span className="step-end">{b.count > 1 ? `${b.count}× ` : ""}{b.end_label}</span>
-      <span className="step-kind muted">{b.kind}</span>
+      {kindLabel && <span className="step-kind muted">{kindLabel}</span>}
       {b.zone && <span className="step-zone" style={{ color: zoneColor }}>{b.zone}</span>}
       {b.pace && <span className="step-pace muted">@ {b.pace}</span>}
+      {b.hr_target && <span className="step-pace muted">@ {b.hr_target}</span>}
     </div>
   );
 }
@@ -146,6 +160,9 @@ function WorkoutPill({ w }: { w: CoachWorkout }) {
         </span>
         <div className="coach-pill-meta">
           {w.duration_min > 0 && <span className="coach-pill-dur">{w.duration_min}min</span>}
+          {w.sport === "strength" && w.exercise_count != null && (
+            <span className="coach-pill-dur">{w.exercise_count} exercícios</span>
+          )}
           {w.zone && <span className="coach-pill-zone" style={{ color }}>{w.zone}</span>}
           {e && (
             <span

@@ -425,3 +425,64 @@ def _seconds_to_min(seconds: int | float | None) -> int | None:
     if seconds is None:
         return None
     return int(seconds // 60)
+
+
+def ingest_vo2max(days: int = 30) -> dict[str, int]:
+    """VO2max via get_max_metrics. Garmin so retorna no dia que recalculou."""
+    api = login()
+    inserted = 0
+    with connect() as conn:
+        for offset in range(days):
+            d = (date.today() - timedelta(days=offset)).isoformat()
+            try:
+                entries = api.get_max_metrics(d) or []
+            except Exception as e:
+                log.warning("max_metrics falhou pra %s: %s", d, e)
+                continue
+            for entry in entries:
+                generic = entry.get("generic") or {}
+                cycling = entry.get("cycling") or {}
+                for sport, payload in (("run", generic), ("bike", cycling)):
+                    if not payload:
+                        continue
+                    value = payload.get("vo2MaxPreciseValue") or payload.get("vo2MaxValue")
+                    cal = payload.get("calendarDate") or d
+                    if value is None:
+                        continue
+                    conn.execute(
+                        "INSERT OR REPLACE INTO vo2max (date, sport, value, raw) VALUES (?,?,?,?)",
+                        (cal, sport, float(value), json.dumps(entry, default=str)),
+                    )
+                    inserted += 1
+    log.info("VO2max (live): %d entries", inserted)
+    return {"inserted": inserted}
+
+
+def ingest_race_predictions() -> dict[str, int]:
+    """Predicoes de prova (FirstBeat) via get_race_predictions — retorna a previsao mais recente."""
+    api = login()
+    try:
+        entry = api.get_race_predictions()
+    except Exception as e:
+        log.warning("race_predictions falhou: %s", e)
+        return {"inserted": 0}
+    if not entry or not entry.get("calendarDate"):
+        return {"inserted": 0}
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO race_predictions
+            (date, race_5k_s, race_10k_s, race_half_s, race_marathon_s, raw)
+            VALUES (?,?,?,?,?,?)
+            """,
+            (
+                entry["calendarDate"],
+                entry.get("time5K"),
+                entry.get("time10K"),
+                entry.get("timeHalfMarathon"),
+                entry.get("timeMarathon"),
+                json.dumps(entry, default=str),
+            ),
+        )
+    log.info("Race predictions (live): 1 entry pra %s", entry["calendarDate"])
+    return {"inserted": 1}

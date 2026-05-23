@@ -53,8 +53,21 @@ def _step_zone(step: dict, sport: str) -> str | None:
     """Estima zona do step (Z1..Z5 ou label livre)."""
     target = step.get("target_type")
     step_type = step.get("step_type")
-    if target == "heart.rate.zone" and step.get("zone_number"):
-        return f"Z{step['zone_number']}"
+    if target == "heart.rate.zone":
+        if step.get("zone_number"):
+            return f"Z{step['zone_number']}"
+        # Sem zone_number: classifica pelo BPM usando as zonas reais do usuário.
+        # Pra range (134-140bpm), usa a ponta alta — fica conservador.
+        bpm = step.get("target_value_two") or step.get("target_value_one")
+        if bpm:
+            from .hr_zones import zone_for_hr
+            z = zone_for_hr(float(bpm))
+            if z >= 1:
+                return f"Z{z}"
+        # fallback por step_type
+        if step_type in LOW_STEP_TYPES:
+            return "Z2" if step_type in ("warmup", "cooldown") else "Z1"
+        return None
     if step_type in LOW_STEP_TYPES:
         return "Z2" if step_type in ("warmup", "cooldown") else "Z1"
     if target == "pace.zone" and step.get("target_value_one"):
@@ -204,28 +217,112 @@ def _build_swim_tech_analysis(exec_data: dict, prescribed_dist_m: float | None) 
                 "hint": hint,
             })
 
-    # Tips heurísticas (max 3)
+    # Melhor 100m da sessão — referencia capacidade vs ritmo médio de série
+    fastest_100 = raw.get("fastestSplit_100")
+    if fastest_100 and fastest_100 > 0:
+        m, s = divmod(int(round(fastest_100)), 60)
+        metrics.append({
+            "name": "Melhor 100m",
+            "value": f"{m}:{s:02d}",
+            "rating": "neutral",
+            "hint": "split mais rápido da sessão",
+        })
+
+    # Lengths ativos (piscina) — separa volume técnico de descanso/splits
+    active_lengths = raw.get("activeLengths")
+    if active_lengths and pool_m:
+        expected = int(actual_dist / pool_m) if pool_m else None
+        hint = "lengths nadados"
+        if expected and active_lengths < expected * 0.9:
+            hint = f"{int(active_lengths)} de ~{expected} esperados — alguns lengths não foram detectados"
+        metrics.append({
+            "name": "Lengths",
+            "value": str(int(active_lengths)),
+            "rating": "neutral",
+            "hint": hint,
+        })
+
+    # Training Effect (aeróbico / anaeróbico) — sai do device
+    te_aero = raw.get("aerobicTrainingEffect")
+    te_anaero = raw.get("anaerobicTrainingEffect")
+    if te_aero is not None or te_anaero is not None:
+        parts = []
+        if te_aero is not None:
+            parts.append(f"aer {float(te_aero):.1f}")
+        if te_anaero is not None:
+            parts.append(f"ana {float(te_anaero):.1f}")
+        te_label = (raw.get("trainingEffectLabel") or "").lower().replace("_", " ") or "estímulo"
+        metrics.append({
+            "name": "Training Effect",
+            "value": " · ".join(parts),
+            "rating": "neutral",
+            "hint": te_label,
+        })
+
+    # Distribuição em zonas de FC — soma os segundos por zona e mostra zona dominante
+    zone_secs = {
+        f"Z{i}": float(raw.get(f"hrTimeInZone_{i}") or 0) for i in range(1, 6)
+    }
+    total_z = sum(zone_secs.values())
+    if total_z > 60:
+        dominant = max(zone_secs.items(), key=lambda kv: kv[1])
+        dom_pct = int(round(dominant[1] / total_z * 100))
+        z45_pct = int(round((zone_secs["Z4"] + zone_secs["Z5"]) / total_z * 100))
+        hint = f"dominante {dominant[0]} ({dom_pct}%)"
+        if z45_pct > 0:
+            hint += f" · Z4-5 {z45_pct}%"
+        rating = "good" if dominant[0] in ("Z2", "Z3") else "neutral"
+        metrics.append({
+            "name": "Zonas FC",
+            "value": f"{dominant[0]} {dom_pct}%",
+            "rating": rating,
+            "hint": hint,
+        })
+
+    # Tips heurísticas (max 4)
     if swolf and float(swolf) >= 42:
-        tips.append(f"Reduzir SWOLF (alvo 38): menos braçadas por length OU mais rápido por length")
+        tips.append(
+            "Reduzir SWOLF (alvo 38): drill 6-3-6 (1 length só braço D, 1 só braço E) força o lado fraco e simetriza a puxada"
+        )
     if cad and float(cad) < 28:
-        tips.append(f"Cadência {int(cad)} strokes/min é baixa — bom pra base, sobe pra 30+ em séries fortes")
+        tips.append(f"Cadência {int(cad)} strokes/min é baixa — em série forte mire 30+ (respirar 2/2 ajuda a manter ritmo)")
     if dps and dps < 1.7:
         tips.append("DPS abaixo de 1.7m — trabalhar alcance e rotação de quadril pra puxada mais longa")
     if prescribed_dist_m and actual_dist < prescribed_dist_m * 0.7:
         tips.append(f"Faltou {(prescribed_dist_m - actual_dist):.0f}m do prescrito — repor na próxima ou conversar com o coach")
-    # Sempre incluir o lembrete de bilateral porque o Garmin nao detecta
-    tips.append("Respiração bilateral 3/3 — Garmin não detecta, marque mentalmente")
+    # Respiração unilateral direita é o padrão atual — Garmin não detecta lado, só lembra de destravar o esquerdo
+    tips.append("Respiração: 200m de aquecimento em 3/3 bilateral pra destravar o lado esquerdo (Garmin não detecta o lado)")
 
     return {
         "metrics": metrics,
         "tips": tips[:4],
         "checklist": [
-            "Respirei bilateral (3 braçadas pra cada lado)",
+            "Aquecimento com 200m respirando 3/3 bilateral (destravar lado esquerdo)",
+            "Em série forte, mudei pra 2/2 alternando lados (mantém cadência)",
+            "Drill 6-3-6 ou catch-up unilateral pra simetrizar a puxada",
             "Kick constante saindo do quadril (não só dos joelhos)",
             "Cabeça alinhada — olhar pro fundo, não pra frente",
             "Empurrei a água até atrás da coxa (puxada completa)",
         ],
     }
+
+
+def _sum_steps_distance_m(nodes: list[dict]) -> float:
+    """Soma metros dos steps com end_condition='distance', respeitando iterations dos repeats.
+
+    Usado pra natação: o estimatedDistanceInMeters do Garmin infla o prescrito (soma
+    paradas como se fossem distância). Calcular pela soma dos steps reflete o que o
+    coach efetivamente escreveu no Treinus.
+    """
+    total = 0.0
+    for n in nodes or []:
+        if n.get("node_type") == "repeat":
+            it = int(n.get("iterations") or 1)
+            total += it * _sum_steps_distance_m(n.get("children") or [])
+        elif n.get("node_type") == "step":
+            if n.get("end_condition") == "distance":
+                total += float(n.get("end_value") or 0)
+    return total
 
 
 def _format_pace_per_km(s_per_km: float) -> str:
@@ -462,20 +559,52 @@ def _build_execution(
     }
 
 
+def _format_hr_target(v1: float | None, v2: float | None) -> str | None:
+    if not v1:
+        return None
+    a = int(round(v1))
+    b = int(round(v2)) if v2 else a
+    return f"{a}bpm" if a == b else f"{a}-{b}bpm"
+
+
 def _step_to_block(step: dict, sport: str) -> dict:
     zone = _step_zone(step, sport)
-    pace = (
-        _pace_ms_to_pace_per_km(step.get("target_value_one"))
-        if step.get("target_type") == "pace.zone"
+    target = step.get("target_type")
+    pace: str | None = None
+    if target == "pace.zone":
+        ms = step.get("target_value_one")
+        if ms and ms > 0:
+            s_per_km = 1000.0 / ms
+            if sport == "swim":
+                pace = _format_pace_per_100m(s_per_km)
+            else:
+                pace = _pace_ms_to_pace_per_km(ms)
+    hr_target = (
+        _format_hr_target(step.get("target_value_one"), step.get("target_value_two"))
+        if target == "heart.rate.zone"
         else None
     )
+    end_cond = step.get("end_condition")
+    end_val = float(step.get("end_value") or 0)
+    duration_s = 0
+    if end_cond == "time":
+        duration_s = int(end_val)
+    elif end_cond == "distance" and end_val > 0:
+        # Estima duração pra step prescrito em distância (comum em natação).
+        # Usa pace alvo se houver; senão pace típico por sport.
+        pace_ms = step.get("target_value_one") if target == "pace.zone" else None
+        if not pace_ms or pace_ms <= 0:
+            # Fallback: pace típico por sport (m/s)
+            pace_ms = {"swim": 0.83, "run": 3.0, "bike": 8.3}.get(sport, 2.5)
+        duration_s = int(end_val / float(pace_ms))
     return {
         "block_type": "step",
         "kind": step.get("step_type"),
         "end_label": _format_end(step),
-        "duration_s": int(step.get("end_value") or 0) if step.get("end_condition") == "time" else 0,
+        "duration_s": duration_s,
         "zone": zone,
         "pace": pace,
+        "hr_target": hr_target,
         "description": step.get("description"),
     }
 
@@ -706,6 +835,99 @@ def _claim_fallback(
     return [chosen]
 
 
+def _load_strength_routines_by_weekday(conn) -> dict[int, dict[str, Any]]:
+    """Mapeia weekday (0=Seg..6=Dom) -> rotina de fortalecimento mais recente.
+
+    O coach prescreve fortalecimento via app Treius (não publica no calendário
+    Garmin), então puxamos de `strength_routines` (ingest do MFit). Pega o maior
+    `id` por weekday quando há múltiplas — assume que a mais recente é a ativa.
+    """
+    rows = conn.execute(
+        """
+        SELECT r.id, r.name, r.weekday, r.routine_label,
+               (SELECT COUNT(*) FROM strength_exercises e WHERE e.routine_id = r.id) AS exercise_count
+        FROM strength_routines r
+        WHERE r.weekday IS NOT NULL
+        ORDER BY r.weekday, r.id DESC
+        """
+    ).fetchall()
+    by_weekday: dict[int, dict[str, Any]] = {}
+    for r in rows:
+        wd = int(r["weekday"])
+        if wd in by_weekday:
+            continue
+        by_weekday[wd] = {
+            "routine_id": r["id"],
+            "name": r["name"],
+            "routine_label": r["routine_label"],
+            "exercise_count": r["exercise_count"],
+        }
+    return by_weekday
+
+
+def _strength_executed(conn, day_iso: str) -> dict[str, Any] | None:
+    """Detecta se houve atividade strength_training no dia (Garmin marca pelo relógio)."""
+    row = conn.execute(
+        """
+        SELECT id, source, external_id, started_at, duration_s, avg_hr, max_hr, calories
+        FROM activities
+        WHERE sport = 'strength' AND date(started_at) = ?
+        ORDER BY started_at
+        LIMIT 1
+        """,
+        (day_iso,),
+    ).fetchone()
+    if not row:
+        return None
+    notes: list[str] = []
+    if row["duration_s"]:
+        notes.append(f"Duração: {round(row['duration_s']/60)}min")
+    if row["avg_hr"]:
+        notes.append(f"FC média: {int(row['avg_hr'])} bpm")
+    if row["calories"]:
+        notes.append(f"Gasto: {int(row['calories'])} kcal")
+    return {
+        "completed": True,
+        "status": "executado",
+        "status_label": "Executado",
+        "completion_pct": None,
+        "activity_id": row["id"],
+        "external_id": row["external_id"],
+        "source": row["source"],
+        "actual_duration_s": row["duration_s"] or 0,
+        "actual_distance_m": 0,
+        "actual_pace_s_km": None,
+        "actual_speed_kmh": None,
+        "actual_avg_hr": int(row["avg_hr"]) if row["avg_hr"] else None,
+        "actual_calories": int(row["calories"]) if row["calories"] else None,
+        "started_at": row["started_at"],
+        "notes": notes,
+        "swim_tech": None,
+    }
+
+
+def _build_strength_workout(routine: dict[str, Any], executed: dict[str, Any] | None) -> dict[str, Any]:
+    label = f"Fortalecimento — {routine['name']}" if routine.get("name") else "Fortalecimento"
+    return {
+        "sport": "strength",
+        "icon": SPORT_ICON["strength"],
+        "kind": "strength",
+        "label": label,
+        "routine_id": routine["routine_id"],
+        "routine_label": routine.get("routine_label"),
+        "exercise_count": routine.get("exercise_count"),
+        "duration_min": 0,
+        "distance_km": None,
+        "zone": None,
+        "target": None,
+        "is_race": False,
+        "blocks": [],
+        "has_structure": False,
+        "executed": executed,
+        "fueling": None,
+    }
+
+
 def coach_schedule(start: date | None = None) -> dict[str, Any]:
     """Schedule prescrito pelo coach.
 
@@ -750,6 +972,11 @@ def coach_schedule(start: date | None = None) -> dict[str, Any]:
         executed_map, unclaimed_by_day_sport = _build_execution_indices(
             conn, start.isoformat(), end_iso=(end + timedelta(days=1)).isoformat()
         )
+        strength_by_weekday = _load_strength_routines_by_weekday(conn)
+        strength_execs = {
+            wd: _strength_executed(conn, (start + timedelta(days=wd)).isoformat())
+            for wd in strength_by_weekday
+        }
 
     by_day: dict[int, list[dict[str, Any]]] = {i: [] for i in range(7)}
     for r in rows:
@@ -765,6 +992,7 @@ def coach_schedule(start: date | None = None) -> dict[str, Any]:
         dur_s = r["estimated_duration_s"] or r["duration_s"]
         dist_m = r["estimated_distance_m"] or r["distance_m"]
         blocks: list[dict[str, Any]] = []
+        steps: list[dict] = []
         if r["steps_json"]:
             try:
                 steps = json.loads(r["steps_json"])
@@ -773,6 +1001,12 @@ def coach_schedule(start: date | None = None) -> dict[str, Any]:
                 blocks = []
         wid = r["workout_id"]
         prescribed_dist_m = r["estimated_distance_m"] or r["distance_m"]
+        # Swim: soma dos steps (end_condition=distance) reflete melhor o que o coach
+        # escreveu — o estimatedDistanceInMeters do Garmin infla por causa de paradas.
+        if sport == "swim" and steps:
+            steps_dist = _sum_steps_distance_m(steps)
+            if steps_dist > 0:
+                prescribed_dist_m = steps_dist
         execs = executed_map.get(int(wid)) if wid else None
         if not execs:
             execs = _claim_fallback(
@@ -796,6 +1030,12 @@ def coach_schedule(start: date | None = None) -> dict[str, Any]:
             "executed": executed,
             "fueling": fueling,
         })
+
+    # Injeta fortalecimento por weekday (coach prescreve via Treius, não no Garmin)
+    for wd, routine in strength_by_weekday.items():
+        if any(w["sport"] == "strength" for w in by_day[wd]):
+            continue
+        by_day[wd].append(_build_strength_workout(routine, strength_execs.get(wd)))
 
     days: list[dict[str, Any]] = []
     has_any = False
@@ -978,6 +1218,11 @@ def coach_today() -> dict[str, Any]:
         executed_map, unclaimed_by_day_sport = _build_execution_indices(
             conn, today.isoformat(), (today + timedelta(days=1)).isoformat()
         )
+        strength_by_weekday = _load_strength_routines_by_weekday(conn)
+        strength_today = strength_by_weekday.get(today.weekday())
+        strength_exec_today = (
+            _strength_executed(conn, today.isoformat()) if strength_today else None
+        )
     items = []
     for r in rows:
         sport = SPORT_MAP.get((r["sport_type"] or "").lower(), "other")
@@ -987,6 +1232,7 @@ def coach_today() -> dict[str, Any]:
             zone = "Race"
         dur_s = r["estimated_duration_s"] or r["duration_s"]
         blocks: list[dict[str, Any]] = []
+        steps: list[dict] = []
         if r["steps_json"]:
             try:
                 steps = json.loads(r["steps_json"])
@@ -995,6 +1241,10 @@ def coach_today() -> dict[str, Any]:
                 blocks = []
         wid = r["workout_id"]
         prescribed_dist_m = r["estimated_distance_m"] or r["distance_m"]
+        if sport == "swim" and steps:
+            steps_dist = _sum_steps_distance_m(steps)
+            if steps_dist > 0:
+                prescribed_dist_m = steps_dist
         execs = executed_map.get(int(wid)) if wid else None
         if not execs:
             execs = _claim_fallback(
@@ -1017,4 +1267,6 @@ def coach_today() -> dict[str, Any]:
             "executed": executed,
             "fueling": fueling,
         })
+    if strength_today and not any(w["sport"] == "strength" for w in items):
+        items.append(_build_strength_workout(strength_today, strength_exec_today))
     return {"date": today.isoformat(), "workouts": items}

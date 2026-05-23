@@ -1,0 +1,14 @@
+[Unit]
+Description=Garmin Relatorio — Cloudflare Tunnel (acesso mobile)
+After=network-online.target garmin-relatorio-api.service
+Wants=network-online.target
+Requires=garmin-relatorio-api.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/cloudflared tunnel --url http://localhost:8000 --no-autoupdate
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

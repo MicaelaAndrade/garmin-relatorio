@@ -1,10 +1,16 @@
 """FastAPI servindo o dashboard."""
 from __future__ import annotations
 
+import os
+import secrets
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..analysis import (
     acwr,
@@ -50,6 +56,42 @@ app.add_middleware(
 )
 
 
+# HTTP Basic Auth. Ativa quando DASHBOARD_USER e DASHBOARD_PASSWORD existem no .env.
+# Desabilitada por padrão (localhost dev). /api/health fica público pro healthcheck.
+class BasicAuthMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, username: str, password: str) -> None:
+        super().__init__(app)
+        self._user = username
+        self._pass = password
+
+    async def dispatch(self, request: Request, call_next):
+        # Healthcheck público pra Cloudflare/uptime monitors
+        if request.url.path == "/api/health":
+            return await call_next(request)
+        import base64
+        header = request.headers.get("authorization", "")
+        if header.startswith("Basic "):
+            try:
+                decoded = base64.b64decode(header[6:]).decode()
+                user, _, pwd = decoded.partition(":")
+                # constant-time comparison evita timing attacks
+                if secrets.compare_digest(user, self._user) and secrets.compare_digest(pwd, self._pass):
+                    return await call_next(request)
+            except (ValueError, UnicodeDecodeError):
+                pass
+        return Response(
+            content="Auth required",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": 'Basic realm="garmin-relatorio"'},
+        )
+
+
+_dash_user = os.getenv("DASHBOARD_USER", "").strip()
+_dash_pass = os.getenv("DASHBOARD_PASSWORD", "").strip()
+if _dash_user and _dash_pass:
+    app.add_middleware(BasicAuthMiddleware, username=_dash_user, password=_dash_pass)
+
+
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
@@ -61,17 +103,35 @@ def health() -> dict:
 
 
 @app.post("/api/refresh")
-def refresh_now(days: int = 2) -> dict:
+def refresh_now(days: int | None = None) -> dict:
     """Roda ingest live sob demanda. Retorna resumo + duracao.
 
     Best-effort: nao aborta se uma fonte falhar.
+    `days` default: cobre desde a última atividade no banco + 2 dias de margem
+    (mínimo 7). Ingest é idempotente (INSERT OR REPLACE).
     """
     import time
     import os
     from ..ingest import garmin as garmin_ingest
+    from datetime import datetime
+    from ..db import connect
 
     start = time.perf_counter()
     results: dict[str, Any] = {}
+
+    if days is None:
+        with connect() as conn:
+            row = conn.execute("SELECT MAX(started_at) FROM activities").fetchone()
+        last_iso = row[0] if row else None
+        if last_iso:
+            try:
+                last_dt = datetime.fromisoformat(last_iso)
+                gap_days = (datetime.now() - last_dt).days + 2
+                days = max(7, min(gap_days, 90))
+            except ValueError:
+                days = 14
+        else:
+            days = 14
 
     def _safe(label: str, fn):
         try:
@@ -81,9 +141,10 @@ def refresh_now(days: int = 2) -> dict:
 
     if os.getenv("GARMIN_EMAIL") and os.getenv("GARMIN_PASSWORD"):
         _safe("activities", lambda: garmin_ingest.ingest_activities(days=days))
-        _safe("sleep", lambda: garmin_ingest.ingest_sleep(days=min(days, 7)))
-        _safe("daily", lambda: garmin_ingest.ingest_daily(days=min(days, 7)))
+        _safe("sleep", lambda: garmin_ingest.ingest_sleep(days=min(days, 14)))
+        _safe("daily", lambda: garmin_ingest.ingest_daily(days=min(days, 14)))
         _safe("scheduled_workouts", lambda: garmin_ingest.ingest_scheduled_workouts(months_ahead=1))
+        _safe("workout_details", lambda: garmin_ingest.ingest_workout_details())
     else:
         results["error"] = "Garmin credentials não configuradas (.env)"
 
@@ -312,3 +373,10 @@ def get_strength_routine(routine_id: int) -> dict:
 @app.get("/api/cycle")
 def get_cycle() -> dict:
     return cycle.cycle_dashboard()
+
+
+# Servir o frontend buildado (vite build → frontend/dist) na raiz.
+# Montar por último pra não conflitar com rotas /api.
+_frontend_dist = Path(__file__).resolve().parents[4] / "frontend" / "dist"
+if _frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="frontend")
