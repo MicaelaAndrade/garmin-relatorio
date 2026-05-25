@@ -1,6 +1,7 @@
 """Sono detalhado: deep/light/REM/awake, eficiencia, scores."""
 from __future__ import annotations
 
+import statistics
 from datetime import date, timedelta
 from typing import Any
 
@@ -123,17 +124,14 @@ def _sleep_debt(days: int = 14, target_h: float = 7.5) -> dict[str, Any]:
         return {"available": False, "debt_h": 0, "target_h": target_h, "days": days}
 
     target_min = target_h * 60
-    debt_min = 0.0
-    nights = 0
-    for r in rows:
-        if r["total_min"] is None:
-            continue
-        nights += 1
-        debt_min += target_min - r["total_min"]
+    # totais por noite, em ordem cronológica (ignora noites sem dado)
+    nightly = [r["total_min"] for r in rows if r["total_min"] is not None]
+    nights = len(nightly)
 
     if nights == 0:
         return {"available": False, "debt_h": 0, "target_h": target_h, "days": days}
 
+    debt_min = sum(target_min - t for t in nightly)
     debt_h = round(debt_min / 60, 1)
     avg_per_night_min = round(debt_min / nights)
     if debt_h <= 1:
@@ -149,6 +147,35 @@ def _sleep_debt(days: int = 14, target_h: float = 7.5) -> dict[str, Any]:
         status = "alta"
         message = "Dívida alta. Risco de impactar treinos e imunidade."
 
+    # Média móvel de 7 dias + tendência (7d recentes vs 7d anteriores)
+    last7 = nightly[-7:]
+    avg_7d_h = round(sum(last7) / len(last7) / 60, 1)
+    trend: str | None = None
+    trend_delta_h: float | None = None
+    if nights >= 8:
+        prev7 = nightly[-14:-7] if nights >= 14 else nightly[:-7]
+        if prev7:
+            delta_min = sum(last7) / len(last7) - sum(prev7) / len(prev7)
+            trend_delta_h = round(delta_min / 60, 1)
+            if delta_min > 15:
+                trend = "melhorando"
+            elif delta_min < -15:
+                trend = "piorando"
+            else:
+                trend = "estavel"
+
+    # Variância: desvio-padrão das noites (causa-raiz quando alta = inconsistência)
+    stdev_min = round(statistics.pstdev(nightly)) if nights >= 2 else 0
+    if stdev_min < 45:
+        consistency = "consistente"
+        consistency_msg = "Sono regular — horários estáveis."
+    elif stdev_min <= 75:
+        consistency = "irregular"
+        consistency_msg = "Sono irregular — noites longas e curtas se alternam. Fixar horário de deitar ajuda mais que dormir mais num dia só."
+    else:
+        consistency = "muito_irregular"
+        consistency_msg = "Sono muito irregular — a variação entre noites é o principal problema, não a média."
+
     return {
         "available": True,
         "days": days,
@@ -158,4 +185,11 @@ def _sleep_debt(days: int = 14, target_h: float = 7.5) -> dict[str, Any]:
         "avg_short_min_per_night": avg_per_night_min,
         "status": status,
         "message": message,
+        "avg_7d_h": avg_7d_h,
+        "avg_14d_h": round(sum(nightly) / nights / 60, 1),
+        "trend": trend,
+        "trend_delta_h": trend_delta_h,
+        "stdev_min": stdev_min,
+        "consistency": consistency,
+        "consistency_msg": consistency_msg,
     }

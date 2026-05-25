@@ -745,6 +745,13 @@ export interface SleepDebt {
   avg_short_min_per_night?: number;
   status?: "ok" | "leve" | "moderada" | "alta";
   message?: string;
+  avg_7d_h?: number;
+  avg_14d_h?: number;
+  trend?: "melhorando" | "piorando" | "estavel" | null;
+  trend_delta_h?: number | null;
+  stdev_min?: number;
+  consistency?: "consistente" | "irregular" | "muito_irregular";
+  consistency_msg?: string;
 }
 
 export interface SleepDetailDashboard {

@@ -163,6 +163,46 @@ export function SleepDetailCard({ data }: { data: SleepDetailDashboard }) {
             ? ` · ~${data.sleep_debt.avg_short_min_per_night}min/noite a menos`
             : ""}
           . {data.sleep_debt.message}
+
+          {data.sleep_debt.avg_7d_h != null && (
+            <div style={{ marginTop: 6, fontSize: 12 }}>
+              📈 <strong>Média móvel 7d:</strong>{" "}
+              <strong style={{ fontFamily: "ui-monospace, monospace" }}>{data.sleep_debt.avg_7d_h}h</strong>
+              {data.sleep_debt.avg_14d_h != null && (
+                <span className="muted"> (14d: {data.sleep_debt.avg_14d_h}h)</span>
+              )}
+              {data.sleep_debt.trend && (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    color:
+                      data.sleep_debt.trend === "melhorando"
+                        ? "var(--accent)"
+                        : data.sleep_debt.trend === "piorando"
+                        ? "var(--danger)"
+                        : "var(--muted, #8b96a8)",
+                  }}
+                >
+                  {data.sleep_debt.trend === "melhorando"
+                    ? "↑ melhorando"
+                    : data.sleep_debt.trend === "piorando"
+                    ? "↓ piorando"
+                    : "→ estável"}
+                  {data.sleep_debt.trend_delta_h != null && data.sleep_debt.trend !== "estavel"
+                    ? ` (${data.sleep_debt.trend_delta_h > 0 ? "+" : ""}${data.sleep_debt.trend_delta_h}h vs 7d anterior)`
+                    : ""}
+                </span>
+              )}
+            </div>
+          )}
+
+          {data.sleep_debt.consistency && data.sleep_debt.consistency !== "consistente" && (
+            <div style={{ marginTop: 6, fontSize: 12 }}>
+              📊 <strong>Variação entre noites:</strong>{" "}
+              <span style={{ fontFamily: "ui-monospace, monospace" }}>±{data.sleep_debt.stdev_min}min</span>{" "}
+              <span className="muted">— {data.sleep_debt.consistency_msg}</span>
+            </div>
+          )}
         </div>
       )}
     </>
