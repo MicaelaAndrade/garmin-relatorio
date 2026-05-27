@@ -15,6 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from ..analysis import (
     acwr,
     activities,
+    bike_technique,
     body_composition,
     calories,
     coach,
@@ -31,6 +32,7 @@ from ..analysis import (
     profile as profile_analysis,
     races as races_analysis,
     recovery,
+    run_technique,
     sleep_detail,
     strength,
     swim_technique,
@@ -213,6 +215,8 @@ def dashboard() -> dict:
         "vdot": vdot.vdot_dashboard(),
         "temperature_trend": temperature_trend.temperature_trend(90),
         "swim_technique": swim_technique.swim_technique_progress(12),
+        "bike_technique": bike_technique.bike_technique_progress(24),
+        "run_technique": run_technique.run_technique_progress(16),
         "body_composition": body_composition.body_composition_dashboard(180),
         "data_sources": data_sources.data_sources_status(),
         "ai_available": bool(__import__("os").getenv("ANTHROPIC_API_KEY", "").strip()),
@@ -325,6 +329,16 @@ def get_coach_today() -> dict:
 @app.get("/api/swim-technique")
 def get_swim_technique(limit: int = 12) -> dict:
     return swim_technique.swim_technique_progress(limit=limit)
+
+
+@app.get("/api/bike-technique")
+def get_bike_technique(limit: int = 24) -> dict:
+    return bike_technique.bike_technique_progress(limit=limit)
+
+
+@app.get("/api/run-technique")
+def get_run_technique(limit: int = 16) -> dict:
+    return run_technique.run_technique_progress(limit=limit)
 
 
 @app.get("/api/body-composition")

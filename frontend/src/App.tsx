@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BikeTechniqueCard } from "./components/BikeTechniqueCard";
 import { BodyCompositionCard } from "./components/BodyCompositionCard";
 import { CalendarHeatmap } from "./components/CalendarHeatmap";
 import { Card, type DashTab } from "./components/Card";
@@ -19,6 +20,7 @@ import { ProfileCard } from "./components/ProfileCard";
 import { RaceComparisonCard } from "./components/RaceComparisonCard";
 import { RaceDayCard } from "./components/RaceDayCard";
 import { RacesCard } from "./components/RacesCard";
+import { RunTechniqueCard } from "./components/RunTechniqueCard";
 import { RecentActivitiesTable } from "./components/RecentActivitiesTable";
 import { SleepCard } from "./components/SleepCard";
 import { SleepDetailCard } from "./components/SleepDetailCard";
@@ -240,6 +242,12 @@ export default function App() {
         </Card>
         <Card storageKey="swim-technique" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <SwimTechniqueCard data={data.swim_technique} />
+        </Card>
+        <Card storageKey="bike-technique" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+          <BikeTechniqueCard data={data.bike_technique} />
+        </Card>
+        <Card storageKey="run-technique" className="col-12" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+          <RunTechniqueCard data={data.run_technique} />
         </Card>
         <Card storageKey="body-composition" className="col-12" defaultCollapsed tabs={["today", "analysis"]} currentTab={tab}>
           <BodyCompositionCard data={data.body_composition} />

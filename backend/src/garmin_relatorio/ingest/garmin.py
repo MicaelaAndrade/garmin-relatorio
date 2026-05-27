@@ -19,6 +19,7 @@ from garminconnect import (
 
 from ..config import ROOT, config
 from ..db import connect
+from .sanity import sane_elevation_gain
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ def ingest_activities(days: int = 90, limit: int = 200) -> dict[str, int]:
                 _avg_pace(act, sport),
                 _avg_speed_kmh(act, sport),
                 _extract_cadence_live(act, sport),
-                act.get("elevationGain"),
+                sane_elevation_gain(act.get("elevationGain"), act.get("distance"), act),
                 int(act["calories"]) if act.get("calories") else None,
                 act.get("activityTrainingLoad"),
                 json.dumps(act, default=str),

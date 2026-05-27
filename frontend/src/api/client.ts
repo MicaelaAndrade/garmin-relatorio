@@ -191,6 +191,8 @@ export interface Dashboard {
   vdot: VdotDashboard;
   temperature_trend: TemperatureTrend;
   swim_technique: SwimTechniqueProgress;
+  bike_technique: BikeTechniqueProgress;
+  run_technique: RunTechniqueProgress;
   body_composition: BodyComposition;
   data_sources: DataSourcesStatus;
   ai_available: boolean;
@@ -296,6 +298,83 @@ export interface SwimTechniqueProgress {
   };
   targets: { swolf: number; dps: number; cadence: number; pace_s_100m: number };
   insights?: string[];
+}
+
+export interface BikeTechniqueSession {
+  activity_id: number;
+  date: string;
+  name: string | null;
+  duration_min: number;
+  distance_km: number;
+  avg_hr: number | null;
+  avg_speed_kmh: number | null;
+  efficiency: number | null;
+  cardiac_drift_pct: number | null;
+  rpe: number | null;
+  feel: number | null;
+  feel_label: string | null;
+}
+
+export interface BikeTechniqueTrend {
+  current: number | null;
+  delta: number | null;
+  improvement: "up" | "flat" | "down" | null;
+  samples_current: number;
+  samples_previous: number;
+}
+
+export interface BikeTechniqueProgress {
+  available: boolean;
+  count?: number;
+  sessions: BikeTechniqueSession[];
+  latest?: BikeTechniqueSession;
+  trends?: {
+    efficiency?: BikeTechniqueTrend;
+    cardiac_drift_pct?: BikeTechniqueTrend;
+    rpe?: BikeTechniqueTrend;
+  };
+  coverage?: { efficiency: number; cardiac_drift_pct: number; rpe: number };
+  targets: { efficiency: number; drift_pct: number };
+  insights?: string[];
+  no_power_meter?: boolean;
+}
+
+export interface RunTechniqueSession {
+  activity_id: number;
+  date: string;
+  duration_min: number;
+  distance_km: number;
+  avg_hr: number | null;
+  pace_s_km: number | null;
+  vertical_ratio: number | null;
+  vertical_oscillation: number | null;
+  cadence: number | null;
+  gct: number | null;
+  stride_length: number | null;
+}
+
+export interface RunTechniqueTrend {
+  current: number | null;
+  delta: number | null;
+  improvement: "up" | "flat" | "down" | null;
+  samples_current: number;
+  samples_previous: number;
+}
+
+export interface RunTechniqueProgress {
+  available: boolean;
+  count?: number;
+  sessions: RunTechniqueSession[];
+  latest?: RunTechniqueSession;
+  trends?: {
+    vertical_ratio?: RunTechniqueTrend;
+    cadence?: RunTechniqueTrend;
+    gct?: RunTechniqueTrend;
+    stride_length?: RunTechniqueTrend;
+  };
+  targets: { vertical_ratio: number; cadence: number; gct: number };
+  insights?: string[];
+  power_excluded?: boolean;
 }
 
 export async function fetchStrengthRoutine(routineId: number): Promise<StrengthRoutine> {

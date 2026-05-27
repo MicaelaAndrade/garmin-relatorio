@@ -18,6 +18,7 @@ from typing import Any
 
 from ..config import config
 from ..db import connect
+from .sanity import sane_elevation_gain
 
 log = logging.getLogger(__name__)
 
@@ -163,6 +164,7 @@ def ingest_activities() -> dict[str, int]:
                     )
                     elev = act.get("elevationGain")
                     elev_m = _cm_to_m(elev) if elev else None  # elevationGain tambem em cm
+                    elev_m = sane_elevation_gain(elev_m, distance_m, act)  # descarta lixo de barômetro
 
                     cur = conn.execute(
                         """
