@@ -53,6 +53,45 @@ SPORT_MAP = {
 }
 
 
+# FC da cinta Polar Verity Sense (braço), gravada via Connect IQ data field ANT+.
+# O resumo de atividade traz só o óptico de PULSO (menos preciso); a cinta é mais
+# fiel pra corrida. Quando presente, preferimos a cinta.
+# Mapeamento do data field (appID fixo da Micaela): 2=FC média, 4=FC máxima, 7=ANT ID.
+ANT_HR_APP_ID = "7c83d402-4b68-4f0a-b167-7139788a19b3"
+ANT_HR_FIELD_AVG = 2
+ANT_HR_FIELD_MAX = 4
+
+
+def _ant_hr(api: Garmin, activity_id: Any) -> tuple[int | None, int | None]:
+    """Busca FC da cinta (Polar) no detalhe da atividade.
+
+    Faz uma chamada extra (`get_activity`) pois `get_activities` (lote) não traz
+    `connectIQMeasurements`. Retorna (avg, max) só com valores fisiologicamente
+    plausíveis; caso contrário (None, None) e o caller cai pro óptico de pulso.
+    """
+    try:
+        detail = api.get_activity(int(activity_id))
+    except Exception as e:  # noqa: BLE001 — falha de detalhe não pode derrubar o ingest
+        log.warning("Detalhe da atividade %s falhou (FC cinta): %s", activity_id, e)
+        return None, None
+    avg = mx = None
+    for m in (detail or {}).get("connectIQMeasurements") or []:
+        if m.get("appID") != ANT_HR_APP_ID:
+            continue
+        try:
+            val = float(m.get("value"))
+        except (TypeError, ValueError):
+            continue
+        if not (40 <= val <= 220):  # descarta o ANT ID (45773) e ruído
+            continue
+        field = m.get("developerFieldNumber")
+        if field == ANT_HR_FIELD_AVG:
+            avg = int(round(val))
+        elif field == ANT_HR_FIELD_MAX:
+            mx = int(round(val))
+    return avg, mx
+
+
 def _extract_cadence_live(act: dict[str, Any], sport: str) -> float | None:
     """Campos retornados pela API live diferem do export."""
     if sport == "run":
@@ -119,6 +158,30 @@ def ingest_activities(days: int = 90, limit: int = 200) -> dict[str, int]:
                 continue
 
             sport = _normalize_sport((act.get("activityType") or {}).get("typeKey"))
+
+            # FC: prefere a cinta Polar (mais precisa) quando gravada; senão óptico de pulso.
+            opt_avg = int(act["averageHR"]) if act.get("averageHR") else None
+            opt_max = int(act["maxHR"]) if act.get("maxHR") else None
+            ant_avg = ant_max = None
+            # ANT+ não atravessa a água: na natação a cinta dá dropout (flatline).
+            # Só preferimos a cinta fora d'água; swim mantém o óptico de pulso.
+            if (opt_avg or opt_max) and sport != "swim":  # evita chamada à toa
+                ant_avg, ant_max = _ant_hr(api, act["activityId"])
+
+            # A cinta de braço é mais precisa QUANDO o sinal pega o treino todo, mas
+            # também sofre dropout (folga/perda de sinal) e aí vem baixa demais —
+            # nesses casos o óptico de pulso é melhor. Heurística: se a média da cinta
+            # despenca >15 bpm abaixo do óptico, é dropout → fica no óptico.
+            strap_ok = bool(ant_avg) and not (opt_avg and (opt_avg - ant_avg) > 15)
+            if strap_ok:
+                avg_hr, max_hr = ant_avg, (ant_max or opt_max)
+                act["_hrSource"] = "ant_strap"
+            else:
+                avg_hr, max_hr = opt_avg, opt_max
+                act["_hrSource"] = "wrist_optical_strap_dropout" if ant_avg else "wrist_optical"
+            act["_opticalHr"] = {"avg": opt_avg, "max": opt_max}
+            act["_strapHr"] = {"avg": ant_avg, "max": ant_max}
+
             row = (
                 "garmin",
                 str(act["activityId"]),
@@ -126,8 +189,8 @@ def ingest_activities(days: int = 90, limit: int = 200) -> dict[str, int]:
                 started.isoformat(),
                 int(act.get("duration") or 0),
                 act.get("distance"),
-                int(act["averageHR"]) if act.get("averageHR") else None,
-                int(act["maxHR"]) if act.get("maxHR") else None,
+                avg_hr,
+                max_hr,
                 _avg_pace(act, sport),
                 _avg_speed_kmh(act, sport),
                 _extract_cadence_live(act, sport),

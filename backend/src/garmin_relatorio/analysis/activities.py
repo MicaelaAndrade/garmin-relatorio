@@ -30,6 +30,11 @@ def recent_activities(limit: int = 20) -> list[dict]:
         try:
             raw = json.loads(d.pop("raw") or "{}")
             d["name"] = raw.get("name") or raw.get("activityName")
+            # Fonte da FC + as duas leituras (cinta Polar x óptico de pulso) pra
+            # transparência: o front mostra a escolhida e flag de dropout da cinta.
+            d["hr_source"] = raw.get("_hrSource")
+            d["optical_hr"] = raw.get("_opticalHr")
+            d["strap_hr"] = raw.get("_strapHr")
             from .zones_distribution import zones_from_raw
             zones = zones_from_raw(raw)
             if zones:

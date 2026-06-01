@@ -109,6 +109,9 @@ export interface RecentActivity {
   calories: number | null;
   name: string | null;
   zones_s?: Record<string, number>;
+  hr_source?: "ant_strap" | "wrist_optical" | "wrist_optical_strap_dropout" | null;
+  optical_hr?: { avg: number | null; max: number | null } | null;
+  strap_hr?: { avg: number | null; max: number | null } | null;
 }
 
 export interface CalendarDay {

@@ -48,6 +48,30 @@ function formatDayHeader(yyyymmdd: string): string {
   return `${prefix}${dow.charAt(0).toUpperCase()}${dow.slice(1)}, ${fmt}`;
 }
 
+/** Monta o detalhe da FC: badge da fonte escolhida + tooltip com as duas leituras. */
+function hrDetail(
+  a: RecentActivity,
+): { badge: string; warn: boolean; title: string } | null {
+  if (!a.avg_hr) return null;
+  const s = a.strap_hr;
+  const o = a.optical_hr;
+  const fmt = (h?: { avg: number | null; max: number | null } | null) =>
+    h?.avg ? `${h.avg}${h.max ? "/" + h.max : ""}` : null;
+  const parts: string[] = [];
+  const sv = fmt(s);
+  const ov = fmt(o);
+  if (sv) parts.push(`cinta ${sv}`);
+  if (ov) parts.push(`óptico ${ov}`);
+  const both = parts.join(" · ");
+  if (a.hr_source === "ant_strap") {
+    return { badge: "cinta", warn: false, title: both || "cinta Polar" };
+  }
+  if (a.hr_source === "wrist_optical_strap_dropout") {
+    return { badge: "óptico ⚠", warn: true, title: `${both} — cinta caiu (dropout)` };
+  }
+  return null; // óptico puro (sem cinta no dia) — sem badge
+}
+
 function activityUrl(source: string, externalId: string): string | null {
   if (!externalId) return null;
   if (source === "garmin") return `https://connect.garmin.com/modern/activity/${externalId}`;
@@ -140,6 +164,7 @@ export function RecentActivitiesTable({ data }: { data: RecentActivity[] }) {
               const distKm = a.distance_m ? a.distance_m / 1000 : null;
               const label = a.name || SPORT_LABEL[a.sport] || a.sport;
               const href = activityUrl(a.source, a.external_id);
+              const hd = hrDetail(a);
               return (
                 <div key={a.id} className="activity-row">
                   <span style={{ fontSize: 18 }}>{SPORT_ICON[a.sport] || "•"}</span>
@@ -167,7 +192,25 @@ export function RecentActivitiesTable({ data }: { data: RecentActivity[] }) {
                     {a.avg_pace_s_km ? formatPace(a.avg_pace_s_km) : "—"}
                   </span>
                   <span style={{ textAlign: "right" }}>
-                    {a.avg_hr ? `${a.avg_hr} bpm` : "—"}
+                    {a.avg_hr ? (
+                      <span title={hd?.title}>
+                        {a.avg_hr} bpm
+                        {hd && (
+                          <span
+                            style={{
+                              marginLeft: 4,
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: hd.warn ? "#c2410c" : "#0369a1",
+                            }}
+                          >
+                            {hd.badge}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </span>
                 </div>
               );
