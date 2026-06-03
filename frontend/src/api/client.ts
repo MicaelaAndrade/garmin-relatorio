@@ -183,6 +183,7 @@ export interface Dashboard {
   training_plan: TrainingPlan;
   coach_schedule: CoachSchedule;
   coach_today: CoachToday;
+  last_workout: LastWorkout;
   strength: StrengthDashboard;
   profile: ProfileDashboard;
   calories: CaloriesDashboard;
@@ -610,6 +611,49 @@ export interface SwimTechAnalysis {
   metrics: SwimTechMetric[];
   tips: string[];
   checklist: string[];
+}
+
+export interface WorkoutZoneBar {
+  zone: string;
+  secs: number;
+  pct: number;
+}
+
+export interface WorkoutHeader {
+  activity_id: number;
+  sport: Sport;
+  icon: string;
+  name: string;
+  started_at: string;
+  distance_label: string | null;
+  duration_label: string;
+  calories: number | null;
+  avg_hr: number | null;
+  max_hr: number | null;
+  hr_source: string | null;
+  pace_label: string | null;
+}
+
+export interface WorkoutComparison {
+  match_kind: "exact" | "shifted";
+  day_label: string | null;
+  label: string | null;
+  prescribed_zone: string | null;
+  prescribed_kind: string | null;
+  prescribed_distance_label: string | null;
+  distance_pct: number | null;
+  intensity_note: string | null;
+  intensity_rating: SwimMetricRating;
+}
+
+export interface LastWorkout {
+  available: boolean;
+  header?: WorkoutHeader;
+  zones?: WorkoutZoneBar[];
+  dominant_zone?: string | null;
+  swim_tech?: SwimTechAnalysis | null;
+  metrics?: SwimTechMetric[];
+  comparison?: WorkoutComparison | null;
 }
 
 export interface CoachExecution {

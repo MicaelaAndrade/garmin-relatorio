@@ -29,6 +29,7 @@ import { SwimTechniqueCard } from "./components/SwimTechniqueCard";
 import { TemperatureTrendCard } from "./components/TemperatureTrendCard";
 import { TrainingPlanCard } from "./components/TrainingPlanCard";
 import { VdotCard } from "./components/VdotCard";
+import { WorkoutPerformanceCard } from "./components/WorkoutPerformanceCard";
 import { Vo2maxCard } from "./components/Vo2maxCard";
 import { WellnessCard } from "./components/WellnessCard";
 import { YearOverYearCard, isYearOverYearAvailable } from "./components/YearOverYearCard";
@@ -209,6 +210,9 @@ export default function App() {
           <CaloriesCard data={data.calories} />
         </Card>
 
+        <Card storageKey="last-workout" className="col-12" tabs={["today", "analysis"]} currentTab={tab}>
+          <WorkoutPerformanceCard data={data.last_workout} />
+        </Card>
         {tab === "today" && (
           <Card storageKey="coach-today" className="col-12" tabs={["today"]} currentTab={tab}>
             <CoachScheduleCard schedule={data.coach_schedule} today={data.coach_today} />

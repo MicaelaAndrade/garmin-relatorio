@@ -42,6 +42,7 @@ from ..analysis import (
     vdot,
     volume,
     weekly_summary,
+    workout_detail,
     wrapped,
     year_over_year,
     zones_distribution,
@@ -204,6 +205,7 @@ def dashboard() -> dict:
         "training_plan": training_plan.weekly_plan(),
         "coach_schedule": coach.coach_schedule(),
         "coach_today": coach.coach_today(),
+        "last_workout": workout_detail.last_workout(),
         "strength": strength.strength_dashboard(),
         "profile": profile_analysis.profile_dashboard(),
         "calories": calories.calories_dashboard(30),
@@ -324,6 +326,11 @@ def get_coach_schedule() -> dict:
 @app.get("/api/coach-today")
 def get_coach_today() -> dict:
     return coach.coach_today()
+
+
+@app.get("/api/last-workout")
+def get_last_workout() -> dict:
+    return workout_detail.last_workout()
 
 
 @app.get("/api/swim-technique")
