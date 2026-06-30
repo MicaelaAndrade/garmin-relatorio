@@ -30,7 +30,7 @@ function trendColor(t: RunTechniqueTrend | undefined): string {
   return "var(--muted)";
 }
 
-type MetricKey = "vertical_ratio" | "cadence" | "gct" | "stride_length";
+type MetricKey = "vertical_ratio" | "cadence" | "gct" | "stride_length" | "norm_power";
 const METRICS: {
   key: MetricKey;
   label: string;
@@ -42,12 +42,14 @@ const METRICS: {
   { key: "cadence", label: "Cadência", unit: "spm", color: "#60a5fa", targetKey: "cadence" },
   { key: "gct", label: "Contato c/ solo", unit: "ms", color: "#fbbf24", targetKey: "gct" },
   { key: "stride_length", label: "Passada", unit: "cm", color: "#a78bfa" },
+  { key: "norm_power", label: "Potência", unit: "W", color: "#f472b6" },
 ];
 
 function fmtVal(key: MetricKey, v: number | null | undefined): string {
   if (v == null) return "—";
   if (key === "vertical_ratio") return `${v.toFixed(1)}%`;
   if (key === "stride_length") return `${v.toFixed(0)}cm`;
+  if (key === "norm_power") return `${v.toFixed(0)}W`;
   return v.toFixed(0);
 }
 
@@ -69,8 +71,10 @@ export function RunTechniqueCard({ data }: { data: RunTechniqueProgress }) {
     cadence: s.cadence,
     gct: s.gct,
     stride_length: s.stride_length,
+    norm_power: s.norm_power,
   }));
 
+  const visibleMetrics = METRICS.filter((m) => m.key !== "norm_power" || data.power_available);
   const metric = METRICS.find((m) => m.key === activeMetric)!;
   const target = metric.targetKey ? data.targets[metric.targetKey] : null;
   const latest = data.latest;
@@ -88,14 +92,14 @@ export function RunTechniqueCard({ data }: { data: RunTechniqueProgress }) {
         Últimas {data.count} corridas · running dynamics do acelerômetro
         {target != null ? " · linha tracejada = alvo" : ""}
       </div>
-      {data.power_excluded && (
-        <div className="muted" style={{ fontSize: 10, marginBottom: 10, opacity: 0.75 }}>
-          ⚠️ Potência de corrida excluída — corrompida pelo defeito do altímetro barométrico (desde out/2025). Métricas de forma vêm do acelerômetro e estão íntegras.
+      {data.power_available && (
+        <div className="muted" style={{ fontSize: 10, marginBottom: 10, opacity: 0.8 }}>
+          ⚡ Potência de corrida disponível (FR265, barômetro íntegro desde 18/06). Corridas anteriores ao FR265 ficam sem potência — o dado do glitch foi descartado.
         </div>
       )}
 
       <div className="swim-metric-tabs" style={{ marginBottom: 10 }}>
-        {METRICS.map((m) => {
+        {visibleMetrics.map((m) => {
           const tr = data.trends?.[m.key];
           return (
             <button
@@ -189,6 +193,22 @@ export function RunTechniqueCard({ data }: { data: RunTechniqueProgress }) {
               <span className="cal-stat-value">{latest.stride_length ?? "—"}</span>
               <span className="cal-stat-unit">cm</span>
             </div>
+            {latest.norm_power != null && (
+              <>
+                <div className="swim-latest-stat">
+                  <span className="cal-stat-label">Potência norm.</span>
+                  <span className="cal-stat-value">{latest.norm_power}</span>
+                  <span className="cal-stat-unit">
+                    W{latest.w_per_kg != null ? ` · ${latest.w_per_kg} W/kg` : ""}
+                  </span>
+                </div>
+                <div className="swim-latest-stat">
+                  <span className="cal-stat-label">Variabilidade</span>
+                  <span className="cal-stat-value">{latest.variability_index?.toFixed(3) ?? "—"}</span>
+                  <span className="cal-stat-unit">norm/méd · alvo ≤ {data.targets.variability_index}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

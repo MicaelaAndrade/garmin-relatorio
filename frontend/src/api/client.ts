@@ -355,6 +355,11 @@ export interface RunTechniqueSession {
   cadence: number | null;
   gct: number | null;
   stride_length: number | null;
+  avg_power: number | null;
+  norm_power: number | null;
+  max_power: number | null;
+  variability_index: number | null;
+  w_per_kg: number | null;
 }
 
 export interface RunTechniqueTrend {
@@ -375,10 +380,14 @@ export interface RunTechniqueProgress {
     cadence?: RunTechniqueTrend;
     gct?: RunTechniqueTrend;
     stride_length?: RunTechniqueTrend;
+    norm_power?: RunTechniqueTrend;
+    variability_index?: RunTechniqueTrend;
   };
-  targets: { vertical_ratio: number; cadence: number; gct: number };
+  targets: { vertical_ratio: number; cadence: number; gct: number; variability_index: number };
   insights?: string[];
   power_excluded?: boolean;
+  power_available?: boolean;
+  weight_kg?: number | null;
 }
 
 export async function fetchStrengthRoutine(routineId: number): Promise<StrengthRoutine> {
@@ -836,6 +845,21 @@ export interface WellnessDay {
   hrv: number | null;
 }
 
+export interface WellnessLatestStatus {
+  date: string | null;
+  hrv_status: {
+    status: string;
+    status_pt: string;
+    weekly_avg: number | null;
+    last_night_avg: number | null;
+    baseline_low: number | null;
+    balanced_low: number | null;
+    balanced_upper: number | null;
+  } | null;
+  spo2: { avg: number | null; lowest: number | null; latest: number | null } | null;
+  respiration: { avg_waking: number | null; lowest: number | null; highest: number | null } | null;
+}
+
 export interface WellnessDashboard {
   available: boolean;
   days: number;
@@ -846,6 +870,7 @@ export interface WellnessDashboard {
   avg_hrv?: number | null;
   stress_high_days?: number;
   bb_low_days?: number;
+  latest_status?: WellnessLatestStatus | null;
 }
 
 export interface SleepNightDetail {

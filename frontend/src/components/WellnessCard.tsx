@@ -1,9 +1,52 @@
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { WellnessDashboard } from "../api/client";
+import type { WellnessDashboard, WellnessLatestStatus } from "../api/client";
 
 function shortDate(iso: string): string {
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+function LatestStatus({ s }: { s: WellnessLatestStatus }) {
+  const hrv = s.hrv_status;
+  const balanced = hrv?.status === "BALANCED";
+  return (
+    <div className="cal-stats" style={{ marginBottom: 14 }}>
+      {hrv && (
+        <div
+          className="cal-stat"
+          title="HRV Status do Garmin: compara seu HRV das últimas noites com sua faixa de baseline pessoal."
+        >
+          <span className="cal-stat-label">HRV Status</span>
+          <span
+            className="cal-stat-value"
+            style={{ color: balanced ? "var(--good, #4ade80)" : "var(--warn, #fb923c)", fontSize: 18 }}
+          >
+            {hrv.status_pt}
+          </span>
+          <span className="cal-stat-unit">
+            {hrv.last_night_avg ?? "—"}ms
+            {hrv.balanced_low != null && hrv.balanced_upper != null
+              ? ` · faixa ${hrv.balanced_low}–${hrv.balanced_upper}`
+              : ""}
+          </span>
+        </div>
+      )}
+      {s.spo2 && (
+        <div className="cal-stat" title="Saturação de oxigênio no sangue durante o sono.">
+          <span className="cal-stat-label">SpO₂</span>
+          <span className="cal-stat-value">{s.spo2.avg ?? "—"}%</span>
+          <span className="cal-stat-unit">média · mín {s.spo2.lowest ?? "—"}%</span>
+        </div>
+      )}
+      {s.respiration && (
+        <div className="cal-stat" title="Frequência respiratória (respirações por minuto) acordada.">
+          <span className="cal-stat-label">Respiração</span>
+          <span className="cal-stat-value">{s.respiration.avg_waking ?? "—"}</span>
+          <span className="cal-stat-unit">rpm acordada</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function WellnessCard({ data }: { data: WellnessDashboard }) {
@@ -56,6 +99,8 @@ export function WellnessCard({ data }: { data: WellnessDashboard }) {
           <span className="cal-stat-unit">ms</span>
         </div>
       </div>
+
+      {data.latest_status && <LatestStatus s={data.latest_status} />}
 
       <div className="label" style={{ marginBottom: 4 }}>Body Battery (0-100)</div>
       <ResponsiveContainer width="100%" height={120}>
