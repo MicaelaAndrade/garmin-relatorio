@@ -231,6 +231,34 @@ CREATE TABLE IF NOT EXISTS body_composition (
 );
 CREATE INDEX IF NOT EXISTS idx_body_comp_measured_at ON body_composition(measured_at);
 
+CREATE TABLE IF NOT EXISTS training_readiness (
+    date            TEXT PRIMARY KEY,         -- YYYY-MM-DD
+    score           INTEGER,                  -- 0-100
+    level           TEXT,                     -- LOW | MODERATE | HIGH | MAXIMUM ...
+    feedback_short  TEXT,                     -- ex: LISTEN_TO_YOUR_BODY
+    feedback_long   TEXT,                     -- ex: LOW_HRV_UNBALANCED
+    sleep_score     INTEGER,
+    recovery_time   INTEGER,                  -- minutos restantes de recuperacao
+    hrv_factor      INTEGER,                  -- contribuicao % do HRV
+    acute_load      INTEGER,
+    acwr_factor     INTEGER,                  -- contribuicao % da relacao aguda:cronica
+    stress_factor   INTEGER,                  -- contribuicao % do historico de stress
+    raw             TEXT
+);
+
+CREATE TABLE IF NOT EXISTS training_status (
+    date            TEXT PRIMARY KEY,         -- calendarDate do snapshot
+    status_code     INTEGER,                  -- codigo numerico do Garmin (7=PRODUCTIVE)
+    status_phrase   TEXT,                     -- ex: PRODUCTIVE_5
+    acwr_percent    INTEGER,                  -- ACWR oficial do Garmin (%)
+    acwr_status     TEXT,                     -- OPTIMAL | LOW | HIGH ...
+    acute_load      INTEGER,                  -- carga aguda diaria
+    chronic_max     REAL,                     -- teto da faixa cronica
+    chronic_min     REAL,                     -- piso da faixa cronica
+    fitness_trend   TEXT,
+    raw             TEXT
+);
+
 CREATE TABLE IF NOT EXISTS ingest_log (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     source          TEXT NOT NULL,

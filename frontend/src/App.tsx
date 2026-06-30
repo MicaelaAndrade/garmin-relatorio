@@ -32,6 +32,7 @@ import { VdotCard } from "./components/VdotCard";
 import { WorkoutPerformanceCard } from "./components/WorkoutPerformanceCard";
 import { Vo2maxCard } from "./components/Vo2maxCard";
 import { WellnessCard } from "./components/WellnessCard";
+import { TrainingReadinessCard } from "./components/TrainingReadinessCard";
 import { YearOverYearCard, isYearOverYearAvailable } from "./components/YearOverYearCard";
 import { VolumeChart } from "./components/VolumeChart";
 import { WeeklySummaryCard } from "./components/WeeklySummaryCard";
@@ -226,6 +227,9 @@ export default function App() {
 
         <Card storageKey="sleep-detail" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <SleepDetailCard data={data.sleep_detail} />
+        </Card>
+        <Card storageKey="training-readiness" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
+          <TrainingReadinessCard data={data.training_readiness} />
         </Card>
         <Card storageKey="wellness" className="col-6" defaultCollapsed tabs={["analysis"]} currentTab={tab}>
           <WellnessCard data={data.wellness} />

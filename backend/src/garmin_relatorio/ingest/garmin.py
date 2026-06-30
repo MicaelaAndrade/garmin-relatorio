@@ -522,6 +522,98 @@ def ingest_vo2max(days: int = 30) -> dict[str, int]:
     return {"inserted": inserted}
 
 
+def ingest_training_readiness(days: int = 14) -> dict[str, int]:
+    """Training Readiness diario (FR265): score 0-100 + nivel + fatores.
+
+    Garmin so calcula a partir do relogio que suporta (FR265). Dias sem dado
+    retornam vazio e sao pulados.
+    """
+    api = login()
+    inserted = 0
+    with connect() as conn:
+        for offset in range(days):
+            d = (date.today() - timedelta(days=offset)).isoformat()
+            try:
+                entries = api.get_training_readiness(d) or []
+            except Exception as e:
+                log.warning("training_readiness falhou pra %s: %s", d, e)
+                continue
+            for entry in entries:
+                cal = entry.get("calendarDate") or d
+                if entry.get("score") is None:
+                    continue
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO training_readiness
+                    (date, score, level, feedback_short, feedback_long, sleep_score,
+                     recovery_time, hrv_factor, acute_load, acwr_factor, stress_factor, raw)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        cal,
+                        entry.get("score"),
+                        entry.get("level"),
+                        entry.get("feedbackShort"),
+                        entry.get("feedbackLong"),
+                        entry.get("sleepScore"),
+                        entry.get("recoveryTime"),
+                        entry.get("hrvFactorPercent"),
+                        entry.get("acuteLoad"),
+                        entry.get("acwrFactorPercent"),
+                        entry.get("stressHistoryFactorPercent"),
+                        json.dumps(entry, default=str),
+                    ),
+                )
+                inserted += 1
+    log.info("Training Readiness: %d dias", inserted)
+    return {"inserted": inserted}
+
+
+def ingest_training_status() -> dict[str, int]:
+    """Training Status atual (FR265): estado (PRODUCTIVE etc) + ACWR oficial do Garmin.
+
+    O endpoint devolve o snapshot mais recente; gravamos por calendarDate.
+    """
+    api = login()
+    today = date.today().isoformat()
+    try:
+        ts = api.get_training_status(today)
+    except Exception as e:
+        log.warning("training_status falhou: %s", e)
+        return {"inserted": 0}
+    mrts = (ts or {}).get("mostRecentTrainingStatus") or {}
+    latest = mrts.get("latestTrainingStatusData") or {}
+    if not latest:
+        return {"inserted": 0}
+    # pega o snapshot mais recente entre os devices
+    snap = max(latest.values(), key=lambda v: v.get("timestamp") or "")
+    load = snap.get("acuteTrainingLoadDTO") or {}
+    cal = snap.get("calendarDate") or today
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO training_status
+            (date, status_code, status_phrase, acwr_percent, acwr_status, acute_load,
+             chronic_max, chronic_min, fitness_trend, raw)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                cal,
+                snap.get("trainingStatus"),
+                snap.get("trainingStatusFeedbackPhrase"),
+                load.get("acwrPercent"),
+                load.get("acwrStatus"),
+                load.get("dailyTrainingLoadAcute"),
+                load.get("maxTrainingLoadChronic"),
+                load.get("minTrainingLoadChronic"),
+                snap.get("fitnessTrend"),
+                json.dumps(snap, default=str),
+            ),
+        )
+    log.info("Training Status: %s (%s)", snap.get("trainingStatusFeedbackPhrase"), cal)
+    return {"inserted": 1}
+
+
 def ingest_race_predictions() -> dict[str, int]:
     """Predicoes de prova (FirstBeat) via get_race_predictions — retorna a previsao mais recente."""
     api = login()

@@ -189,6 +189,7 @@ export interface Dashboard {
   calories: CaloriesDashboard;
   sleep_detail: SleepDetailDashboard;
   wellness: WellnessDashboard;
+  training_readiness: TrainingReadinessDashboard;
   year_over_year: YearOverYear;
   performance_mgmt: PMCDashboard;
   cycle_performance: CyclePerformanceDashboard;
@@ -858,6 +859,44 @@ export interface WellnessLatestStatus {
   } | null;
   spo2: { avg: number | null; lowest: number | null; latest: number | null } | null;
   respiration: { avg_waking: number | null; lowest: number | null; highest: number | null } | null;
+}
+
+export interface TrainingReadinessDay {
+  date: string;
+  score: number | null;
+  level: string | null;
+}
+
+export interface TrainingReadinessDashboard {
+  available: boolean;
+  days: number;
+  series: TrainingReadinessDay[];
+  avg_score?: number | null;
+  latest?: {
+    date: string;
+    score: number | null;
+    level: string | null;
+    level_pt: string | null;
+    feedback: string | null;
+    sleep_score: number | null;
+    recovery_time_h: number | null;
+    hrv_factor: number | null;
+    acute_load: number | null;
+    acwr_factor: number | null;
+    stress_factor: number | null;
+  } | null;
+  status?: {
+    date: string;
+    phrase: string | null;
+    status_pt: string | null;
+    acwr_percent: number | null;
+    acwr_status: string | null;
+    acwr_status_pt: string | null;
+    acute_load: number | null;
+    chronic_min: number | null;
+    chronic_max: number | null;
+    fitness_trend: string | null;
+  } | null;
 }
 
 export interface WellnessDashboard {

@@ -18,7 +18,7 @@ def main(argv: list[str] | None = None) -> int:
     p_garmin.add_argument("--days", type=int, default=90)
     p_garmin.add_argument(
         "--what",
-        choices=["all", "activities", "sleep", "daily", "scheduled", "workouts", "vo2max", "predictions"],
+        choices=["all", "activities", "sleep", "daily", "scheduled", "workouts", "vo2max", "predictions", "readiness"],
         default="all",
     )
 
@@ -87,6 +87,9 @@ def main(argv: list[str] | None = None) -> int:
             print(garmin.ingest_vo2max(days=min(args.days, 60)))
         if args.what in ("all", "predictions"):
             print(garmin.ingest_race_predictions())
+        if args.what in ("all", "readiness"):
+            print(garmin.ingest_training_readiness(days=min(args.days, 30)))
+            print(garmin.ingest_training_status())
 
     elif args.cmd == "strava-auth":
         from .ingest import strava
