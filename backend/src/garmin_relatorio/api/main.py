@@ -143,14 +143,19 @@ def refresh_now(days: int | None = None) -> dict:
         except Exception as e:
             results[label] = {"error": str(e)}
 
-    if os.getenv("GARMIN_EMAIL") and os.getenv("GARMIN_PASSWORD"):
+    # Login usa a sessão salva (tokenstore); a senha é só fallback quando os
+    # tokens expiram. Portanto basta e-mail + (senha OU sessão salva em disco).
+    tokens_exist = garmin_ingest.SESSION_DIR.exists() and any(
+        garmin_ingest.SESSION_DIR.iterdir()
+    )
+    if os.getenv("GARMIN_EMAIL") and (os.getenv("GARMIN_PASSWORD") or tokens_exist):
         _safe("activities", lambda: garmin_ingest.ingest_activities(days=days))
         _safe("sleep", lambda: garmin_ingest.ingest_sleep(days=min(days, 14)))
         _safe("daily", lambda: garmin_ingest.ingest_daily(days=min(days, 14)))
         _safe("scheduled_workouts", lambda: garmin_ingest.ingest_scheduled_workouts(months_ahead=1))
         _safe("workout_details", lambda: garmin_ingest.ingest_workout_details())
     else:
-        results["error"] = "Garmin credentials não configuradas (.env)"
+        results["error"] = "Garmin sem credenciais nem sessão salva (.env / data/garmin_session)"
 
     # Strava opcional
     from pathlib import Path
